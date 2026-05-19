@@ -2181,48 +2181,38 @@
     // App — Shell بيلوّد البيانات + يطلب تسجيل دخول إجباري
     // ════════════════════════════════════════════════════════════
     function App() {
-      const [bootState, setBootState] = useState('loading'); // loading | login | ready
+      const [bootState, setBootState] = useState('login'); // login | ready
       const [user, setUser] = useState(null);
       const [profile, setProfile] = useState(null);
 
-      // تحميل أولي
+      // تحميل أولي في الخلفية — مش بيحجب الـ UI
       useEffect(() => {
         let alive = true;
-        // timeout عشان لو Supabase مش بترد، نعدّي للـ login بعد 8 ثواني
-        const failsafe = setTimeout(() => {
-          if (alive && bootState === 'loading') {
-            console.warn('Boot timeout — falling through to login');
-            setBootState('login');
-          }
-        }, 8000);
         (async () => {
-          // 1) بيانات الكروت (مع timeout)
+          // بيانات الكروت في الخلفية (مع timeout 5 ثواني)
           await Promise.race([
             loadFromSupabase(),
-            new Promise(res => setTimeout(res, 6000))
+            new Promise(res => setTimeout(res, 5000))
           ]);
           if (!alive) return;
 
-          // 2) فحص الجلسة (مع timeout)
+          // فحص الجلسة (مع timeout 5 ثواني)
           try {
-            const sessionResult = await Promise.race([
+            const result = await Promise.race([
               sb.auth.getSession(),
-              new Promise((_, rej) => setTimeout(() => rej(new Error('timeout')), 6000))
+              new Promise((_, rej) => setTimeout(() => rej(new Error('timeout')), 5000))
             ]);
-            const { data: { session } } = sessionResult;
+            const { data: { session } } = result;
             if (alive && session?.user) {
               setUser(session.user);
               const { data: p } = await sb.from('profiles').select('*').eq('id', session.user.id).maybeSingle();
               if (alive && p) setProfile(p);
               if (alive) setBootState('ready');
-            } else if (alive) {
-              setBootState('login');
             }
           } catch (e) {
-            console.warn('Auth check failed:', e);
-            if (alive) setBootState('login');
+            console.warn('Auth check failed or timed out:', e);
+            // نفضل على login — مش محتاج نعمل حاجة
           }
-          clearTimeout(failsafe);
         })();
 
         // استمع للتغيرات
@@ -2242,7 +2232,7 @@
           }
         });
 
-        return () => { alive = false; clearTimeout(failsafe); subscription?.unsubscribe(); };
+        return () => { alive = false; subscription?.unsubscribe(); };
       }, []);
 
       // إعادة تحميل البروفايل (مثلاً بعد لعبة عشان نشوف العملات الجديدة)
@@ -2274,18 +2264,7 @@
         await sb.auth.signOut();
       }
 
-      // شاشة التحميل
-      if (bootState === 'loading') {
-        return (
-          <div className="login-screen">
-            <div className="login-logo">⚜</div>
-            <div className="login-title">Duelist's Gambit</div>
-            <div className="mt-4 text-gray-400 font-body">جاري التحميل...</div>
-          </div>
-        );
-      }
-
-      // شاشة تسجيل الدخول
+      // لو لسه في الـ background loading، اعرض login في الوقت ده
       if (bootState === 'login' || !user) {
         return <LoginScreen onGoogle={handleGoogle} />;
       }
