@@ -2284,6 +2284,7 @@
     function MatchmakingModal({ matchmaking, matchTimer, setMatchTimer, setMatchmaking, setMode, botName, user }) {
       const timerRef = React.useRef(null);
       const channelRef = React.useRef(null);
+      const pollRef = React.useRef(null);
       const myEntryId = React.useRef(null);
       const resolvedRef = React.useRef(false);
 
@@ -2302,33 +2303,33 @@
             status: 'waiting'
           }).select().single();
 
-          if (error || !data) { fallbackToBot(); return; }
+          if (error || !data) { console.error('Queue insert error:', error); fallbackToBot(); return; }
           myEntryId.current = data.id;
 
-          // 2) اشترك في التغييرات على الـ queue
-          channelRef.current = sb.channel('matchmaking_' + data.id)
-            .on('postgres_changes', {
-              event: 'UPDATE',
-              schema: 'public',
-              table: 'matchmaking_queue',
-              filter: `id=eq.${data.id}`
-            }, (payload) => {
-              if (payload.new.status === 'matched' && !resolvedRef.current) {
-                resolvedRef.current = true;
-                clearInterval(timerRef.current);
-                setMatchmaking('found');
-                cleanup();
-                setTimeout(() => { setMatchmaking(null); setMode('1p'); }, 2000);
-              }
-            })
-            .subscribe();
+          // polling كل ثانية — أبسط وأضمن من Realtime
+          pollRef.current = setInterval(() => pollForMatch(data.id), 1000);
 
-          // 3) حاول تطابق مع لاعب ينتظر
-          await tryMatch(data.id);
+          // حاول فوراً
+          await pollForMatch(data.id);
         }
 
-        async function tryMatch(myId) {
-          // ابحث عن أي لاعب ينتظر غيري
+        async function pollForMatch(myId) {
+          if (resolvedRef.current) return;
+
+          // أولاً: هل أنا اتطابقت من لاعب تاني؟
+          const { data: me } = await sb
+            .from('matchmaking_queue')
+            .select('status, matched_with')
+            .eq('id', myId)
+            .single();
+
+          if (me?.status === 'matched' && !resolvedRef.current) {
+            resolvedRef.current = true;
+            foundMatch();
+            return;
+          }
+
+          // ثانياً: أنا اللي أبحث عن لاعب ينتظر
           const { data: waiting } = await sb
             .from('matchmaking_queue')
             .select('id, user_id')
@@ -2341,16 +2342,26 @@
             const opponent = waiting[0];
             const gameId = 'game_' + Date.now();
 
-            // طابق الاثنين
-            await sb.from('matchmaking_queue').update({ status: 'matched', matched_with: user.id, game_id: gameId }).eq('id', opponent.id);
-            await sb.from('matchmaking_queue').update({ status: 'matched', matched_with: opponent.user_id, game_id: gameId }).eq('id', myId);
+            // طابق الاثنين في نفس الوقت
+            const [r1, r2] = await Promise.all([
+              sb.from('matchmaking_queue').update({ status: 'matched', matched_with: user.id, game_id: gameId }).eq('id', opponent.id).eq('status', 'waiting'),
+              sb.from('matchmaking_queue').update({ status: 'matched', matched_with: opponent.user_id, game_id: gameId }).eq('id', myId).eq('status', 'waiting'),
+            ]);
 
-            resolvedRef.current = true;
-            clearInterval(timerRef.current);
-            setMatchmaking('found');
-            cleanup();
-            setTimeout(() => { setMatchmaking(null); setMode('1p'); }, 2000);
+            // تأكد إن التطابق نجح (race condition protection)
+            if (!r1.error && !r2.error && !resolvedRef.current) {
+              resolvedRef.current = true;
+              foundMatch();
+            }
           }
+        }
+
+        function foundMatch() {
+          clearInterval(timerRef.current);
+          clearInterval(pollRef.current);
+          setMatchmaking('found');
+          cleanup();
+          setTimeout(() => { setMatchmaking(null); setMode('1p'); }, 2000);
         }
 
         function fallbackToBot() {
@@ -2363,6 +2374,7 @@
 
         function cleanup() {
           clearInterval(timerRef.current);
+          clearInterval(pollRef.current);
           if (channelRef.current) sb.removeChannel(channelRef.current);
           if (myEntryId.current) sb.from('matchmaking_queue').delete().eq('id', myEntryId.current).then(() => {});
         }
@@ -2387,9 +2399,10 @@
       }, []);
 
       function cancelSearch() {
+        clearInterval(timerRef.current);
+        clearInterval(pollRef.current);
         if (channelRef.current) sb.removeChannel(channelRef.current);
         if (myEntryId.current) sb.from('matchmaking_queue').delete().eq('id', myEntryId.current).then(() => {});
-        clearInterval(timerRef.current);
         setMatchmaking(null);
       }
 
