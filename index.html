@@ -1775,6 +1775,8 @@
     }
 
     function gameReducer(state, action) {
+      // REPLACE_STATE من السيرفر دايماً يطبق (للأونلاين multiplayer)
+      if (action.type === 'REPLACE_STATE') return action.state;
       // لازم NEW_GAME يعدّي حتى لو في فائز
       if (state.winner && action.type !== 'NEW_GAME') return state;
       const s = deepCloneState(state);
@@ -2094,13 +2096,13 @@
     // ════════════════════════════════════════════════════════════
     // مكوّن: لوحة المعلومات للاعب (مانا، إيد...)
     // ════════════════════════════════════════════════════════════
-    function PlayerPanel({ playerNum, player, isCurrent, viewMode, kingHp, kingMaxHp }) {
+    function PlayerPanel({ playerNum, player, isCurrent, viewMode, kingHp, kingMaxHp, customName }) {
       // viewMode: 'full' = أشوف إيدي / 'hidden' = إيد الخصم مخفية
       return (
         <div className={`p-3 rounded border ${isCurrent ? 'border-yellow-500 bg-amber-950/30' : 'border-gray-700 bg-gray-900/40'}`}>
           <div className="flex items-center justify-between mb-2">
             <div className="font-display text-lg" style={{ color: playerNum === 1 ? '#d4a04a' : '#a0b8ff' }}>
-              ⚜ اللاعب {playerNum}
+              ⚜ {customName || `اللاعب ${playerNum}`}
             </div>
             {isCurrent && <span className="font-display text-xs text-yellow-300">— دوره الآن —</span>}
           </div>
@@ -2281,7 +2283,7 @@
     // ════════════════════════════════════════════════════════════
     // MatchmakingModal — البحث عن لاعب (Supabase Realtime)
     // ════════════════════════════════════════════════════════════
-    function MatchmakingModal({ matchmaking, matchTimer, setMatchTimer, setMatchmaking, setMode, botName, user }) {
+    function MatchmakingModal({ matchmaking, matchTimer, setMatchTimer, setMatchmaking, setMode, onMatched, botName, user }) {
       const timerRef = React.useRef(null);
       const channelRef = React.useRef(null);
       const pollRef = React.useRef(null);
@@ -2323,22 +2325,22 @@
           // هل أنا اتطابقت؟
           const { data: me, error: meErr } = await sb
             .from('matchmaking_queue')
-            .select('status, matched_with')
+            .select('status, matched_with, game_id')
             .eq('id', myId)
-            .single();
+            .maybeSingle();
 
           console.log('[MM] my status:', me?.status, meErr?.message);
 
-          if (me?.status === 'matched' && !resolvedRef.current) {
+          if (me?.status === 'matched' && me.matched_with && me.game_id && !resolvedRef.current) {
             resolvedRef.current = true;
-            foundMatch();
+            handleMatch(me.matched_with, me.game_id);
             return;
           }
 
           // ابحث عن لاعب ينتظر
           const { data: waiting, error: wErr } = await sb
             .from('matchmaking_queue')
-            .select('id, user_id')
+            .select('id, user_id, display_name')
             .eq('status', 'waiting')
             .neq('user_id', user.id)
             .order('joined_at', { ascending: true })
@@ -2348,29 +2350,88 @@
 
           if (waiting && waiting.length > 0 && !resolvedRef.current) {
             const opponent = waiting[0];
-            const gameId = 'game_' + Date.now();
-            console.log('[MM] found opponent:', opponent.user_id, '— matching...');
+            const gameId = 'game_' + Date.now() + '_' + Math.random().toString(36).slice(2, 8);
+            console.log('[MM] found opponent:', opponent.user_id, '— matching as game', gameId);
 
+            // .select() بيرجّع الصفوف اللي اتعدّلت فعلاً
             const [r1, r2] = await Promise.all([
-              sb.from('matchmaking_queue').update({ status: 'matched', matched_with: user.id, game_id: gameId }).eq('id', opponent.id).eq('status', 'waiting'),
-              sb.from('matchmaking_queue').update({ status: 'matched', matched_with: opponent.user_id, game_id: gameId }).eq('id', myId).eq('status', 'waiting'),
+              sb.from('matchmaking_queue').update({ status: 'matched', matched_with: user.id, game_id: gameId }).eq('id', opponent.id).eq('status', 'waiting').select(),
+              sb.from('matchmaking_queue').update({ status: 'matched', matched_with: opponent.user_id, game_id: gameId }).eq('id', myId).eq('status', 'waiting').select(),
             ]);
 
-            console.log('[MM] match r1:', r1.error || 'ok', 'r2:', r2.error || 'ok');
+            const winRace = (r1.data?.length || 0) > 0 && (r2.data?.length || 0) > 0;
+            console.log('[MM] match win:', winRace, 'r1:', r1.error?.message || 'ok', 'r2:', r2.error?.message || 'ok');
 
-            if (!r1.error && !r2.error && !resolvedRef.current) {
+            if (winRace && !resolvedRef.current) {
               resolvedRef.current = true;
-              foundMatch();
+              handleMatch(opponent.user_id, gameId);
             }
           }
         }
 
-        function foundMatch() {
-          clearInterval(timerRef.current);
-          clearInterval(pollRef.current);
+        // إنشاء/قراءة اللعبة وانتقال لوضع الأونلاين
+        async function handleMatch(opponentUserId, gameId) {
+          console.log('[MM] handleMatch with opponent:', opponentUserId, 'game:', gameId);
+
+          // اقرأ اسم الخصم من profiles
+          const { data: oppProfile } = await sb.from('profiles').select('display_name').eq('id', opponentUserId).maybeSingle();
+          const myName = user.user_metadata?.full_name || user.email?.split('@')[0] || 'لاعب';
+          const oppName = oppProfile?.display_name || 'لاعب';
+
+          // قاعدة ثابتة: الـ user_id الأصغر هو اللي ينشئ اللعبة + يبقى اللاعب 1
+          // (UUIDs عشوائية، فالنتيجة عشوائية بين كل زوج)
+          const iAmCreator = user.id < opponentUserId;
+          const player1_id = iAmCreator ? user.id : opponentUserId;
+          const player2_id = iAmCreator ? opponentUserId : user.id;
+          const iAmPlayer1 = user.id === player1_id;
+
+          if (iAmCreator) {
+            // أنا اللي بنشئ اللعبة
+            const initialState = makeInitialState();
+            const gameRow = {
+              id: gameId,
+              player1_id,
+              player2_id,
+              player1_name: iAmPlayer1 ? myName : oppName,
+              player2_name: iAmPlayer1 ? oppName : myName,
+              state: initialState,
+              status: 'active',
+            };
+            const { error } = await sb.from('games').insert(gameRow);
+            if (error) console.warn('[MM] game insert error:', error.message);
+            else console.log('[MM] game created');
+          } else {
+            // أستنى المُنشئ يعمل insert
+            let retries = 0;
+            let exists = false;
+            while (!exists && retries < 30) {
+              const { data } = await sb.from('games').select('id').eq('id', gameId).maybeSingle();
+              if (data) { exists = true; break; }
+              await new Promise(r => setTimeout(r, 200));
+              retries++;
+            }
+            if (!exists) {
+              console.error('[MM] game never appeared — falling back to bot');
+              fallbackToBot();
+              return;
+            }
+            console.log('[MM] game found, joining as player', iAmPlayer1 ? 1 : 2);
+          }
+
+          // عرض شاشة "وُجد لاعب" ثم الانتقال للعبة
           setMatchmaking('found');
           cleanup();
-          setTimeout(() => { setMatchmaking(null); setMode('1p'); }, 2000);
+          setTimeout(() => {
+            setMatchmaking(null);
+            onMatched({
+              gameId,
+              myPlayerNum: iAmPlayer1 ? 1 : 2,
+              myName,
+              opponentName: oppName,
+              player1_id,
+              player2_id,
+            });
+          }, 1500);
         }
 
         function fallbackToBot() {
@@ -2592,12 +2653,114 @@
 
     function Game({ user, profile, onSignOut, onRefreshProfile }) {
       const [state, dispatch] = useReducer(gameReducer, undefined, makeInitialState);
-      const [mode, setMode] = useState('menu'); // 'menu' | '1p' | '2p'
+      const [mode, setMode] = useState('menu'); // 'menu' | '1p' | '2p' | 'online'
+      const [onlineGame, setOnlineGame] = useState(null); // {gameId, myPlayerNum, opponentName, player1_id, player2_id}
+      const [onlineLoading, setOnlineLoading] = useState(false);
       const [showRules, setShowRules] = useState(false);
       const [showPassScreen, setShowPassScreen] = useState(false);
       const [previousPlayer, setPreviousPlayer] = useState(1);
       const logRef = useRef(null);
       const aiRef = useRef({ phase: 'idle', pendingMoveTarget: null, unitList: null, unitIndex: 0 });
+
+      // ──────────────────────────────────────────────────
+      // ONLINE MULTIPLAYER: تحميل أولي + اشتراك realtime
+      // ──────────────────────────────────────────────────
+      useEffect(() => {
+        if (mode !== 'online' || !onlineGame?.gameId) return;
+        let alive = true;
+        setOnlineLoading(true);
+
+        // 1) تحميل أولي
+        (async () => {
+          const { data, error } = await sb.from('games')
+            .select('state, status, winner_id')
+            .eq('id', onlineGame.gameId)
+            .maybeSingle();
+          if (!alive) return;
+          if (error || !data) {
+            console.error('[Online] initial load failed:', error?.message);
+            setMode('menu'); setOnlineGame(null);
+            return;
+          }
+          dispatch({ type: 'REPLACE_STATE', state: data.state });
+          setOnlineLoading(false);
+        })();
+
+        // 2) اشتراك realtime
+        const channel = sb.channel(`game-${onlineGame.gameId}`)
+          .on('postgres_changes', {
+            event: 'UPDATE',
+            schema: 'public',
+            table: 'games',
+            filter: `id=eq.${onlineGame.gameId}`,
+          }, (payload) => {
+            if (!alive) return;
+            if (payload.new?.state) {
+              dispatch({ type: 'REPLACE_STATE', state: payload.new.state });
+            }
+          })
+          .subscribe((status) => {
+            console.log('[Online] channel status:', status);
+          });
+
+        return () => {
+          alive = false;
+          sb.removeChannel(channel);
+        };
+      }, [mode, onlineGame?.gameId]);
+
+      // ──────────────────────────────────────────────────
+      // dispatch مع مزامنة للأونلاين (يحدّث الـ DB بعد كل حركة)
+      // ──────────────────────────────────────────────────
+      const onlineGameRef = useRef(onlineGame);
+      onlineGameRef.current = onlineGame;
+      const stateRef = useRef(state);
+      stateRef.current = state;
+
+      const syncedDispatch = React.useCallback((action) => {
+        const og = onlineGameRef.current;
+        const curState = stateRef.current;
+
+        // مش في الأونلاين → dispatch عادي
+        if (mode !== 'online' || !og) {
+          dispatch(action);
+          return;
+        }
+
+        // REPLACE_STATE من الـ realtime → dispatch مباشر بدون مزامنة
+        if (action.type === 'REPLACE_STATE') {
+          dispatch(action);
+          return;
+        }
+
+        // أكشن من المستخدم: لازم يكون دوره
+        if (action.type !== 'NEW_GAME' && curState.currentPlayer !== og.myPlayerNum) {
+          console.log('[Online] ignored action — not your turn:', action.type);
+          return;
+        }
+
+        // احسب الحالة الجديدة محلياً (للتطبيق الفوري)
+        const newState = gameReducer(curState, action);
+        if (newState === curState) return; // مفيش تغيير
+
+        // طبّق محلياً + حدّث الـ ref فوراً (عشان كليكس متتالية)
+        dispatch({ type: 'REPLACE_STATE', state: newState });
+        stateRef.current = newState;
+
+        // اطلع على الـ DB
+        const updateRow = {
+          state: newState,
+          updated_at: new Date().toISOString(),
+          last_action_at: new Date().toISOString(),
+        };
+        if (newState.winner) {
+          updateRow.status = 'finished';
+          updateRow.winner_id = newState.winner === 1 ? og.player1_id : og.player2_id;
+        }
+        sb.from('games').update(updateRow).eq('id', og.gameId).then(({ error }) => {
+          if (error) console.error('[Online] sync failed:', error.message);
+        });
+      }, [mode]);
 
       // عند تغيير الدور، اعرض شاشة "سلّم الجهاز"
       useEffect(() => {
@@ -2605,9 +2768,10 @@
           setPreviousPlayer(state.currentPlayer);
           if (mode === '1p') {
             if (state.currentPlayer === 1) setShowPassScreen(true);
-          } else {
+          } else if (mode === '2p') {
             setShowPassScreen(true);
           }
+          // online mode: مفيش شاشة "سلّم الجهاز" — كل لاعب على جهازه
         }
       }, [state.currentPlayer, state.winner, mode]);
 
@@ -2641,8 +2805,13 @@
       }, [state.bannerText, mode]);
 
       const highlights = useMemo(() => computeHighlights(state), [state]);
-      const currentPlayerData = state.players[state.currentPlayer];
-      const otherPlayerNum = state.currentPlayer === 1 ? 2 : 1;
+      // في الأونلاين: الأسفل دايماً = أنا (myPlayerNum)، الأعلى = خصمي.
+      // في 1p/2p: زي الأصل (الأسفل = اللي دوره دلوقتي).
+      const isOnlineMode = mode === 'online' && onlineGame;
+      const bottomPlayerNum = isOnlineMode ? onlineGame.myPlayerNum : state.currentPlayer;
+      const otherPlayerNum = bottomPlayerNum === 1 ? 2 : 1;
+      const currentPlayerData = state.players[bottomPlayerNum];
+      const isMyTurn = !isOnlineMode || state.currentPlayer === onlineGame.myPlayerNum;
 
       // إيجاد ملوك الاعبين على الرقعة (لعرض الصحة)
       function findKing(num) {
@@ -2797,7 +2966,7 @@
                 onClick={() => {
                   if (!canAffordOnline) return;
                   setMatchmaking('searching');
-                  setMatchTimer(10);
+                  setMatchTimer(30);
                 }}
                 title={!canAffordOnline ? 'محتاج 200 عملة على الأقل' : ''}
               >
@@ -2876,6 +3045,11 @@
                 setMatchTimer={setMatchTimer}
                 setMatchmaking={setMatchmaking}
                 setMode={setMode}
+                onMatched={(info) => {
+                  dispatch({ type: 'NEW_GAME' }); // ريسيت الحالة المحلية
+                  setOnlineGame(info);
+                  setMode('online');
+                }}
                 botName={botName}
                 user={user}
               />
@@ -2903,24 +3077,66 @@
         );
       }
 
+      // شاشة تحميل اللعبة الأونلاين
+      if (mode === 'online' && onlineLoading) {
+        return (
+          <div className="modal-backdrop">
+            <div className="modal text-center" style={{ maxWidth: '320px' }}>
+              <div style={{ fontSize: '3rem', marginBottom: '0.5rem' }}>⚔️</div>
+              <h2 className="font-display text-xl text-yellow-400 mb-2">جاري تحميل المبارزة...</h2>
+              <div style={{
+                width: '60px', height: '60px', borderRadius: '50%', margin: '0.5rem auto',
+                border: '4px solid rgba(201,169,97,0.2)', borderTopColor: '#c9a961',
+                animation: 'spin 1s linear infinite'
+              }} />
+              <p className="font-body text-sm text-gray-400 mt-3">
+                خصمك: <b className="text-yellow-300">{onlineGame?.opponentName}</b>
+              </p>
+              <p className="font-body text-xs text-gray-500 mt-1">
+                أنت اللاعب {onlineGame?.myPlayerNum}
+              </p>
+            </div>
+          </div>
+        );
+      }
+
       // الفائز
       if (state.winner) {
+        const winnerText = (() => {
+          if (mode === '1p' && state.winner === 2) return '💻 الكمبيوتر انتصر!';
+          if (mode === 'online') {
+            return state.winner === onlineGame?.myPlayerNum
+              ? '🏆 انتصرت!'
+              : `😔 ${onlineGame?.opponentName} انتصر`;
+          }
+          return `اللاعب ${state.winner} انتصر!`;
+        })();
         return (
           <div className="modal-backdrop">
             <div className="modal text-center">
               <div className="font-display text-4xl text-yellow-400 mb-4">⚜ النصر ⚜</div>
               <div className="font-display text-2xl mb-6" style={{ color: state.winner === 1 ? '#d4a04a' : '#a0b8ff' }}>
-                {mode === '1p' && state.winner === 2 ? '💻 الكمبيوتر انتصر!' : `اللاعب ${state.winner} انتصر!`}
+                {winnerText}
               </div>
               <div className="ornament-line mb-6"><span>⚔</span></div>
               <p className="font-body text-lg mb-6 text-gray-300">
-                سقط ملك الخصم. تشرّفت المملكة بهذا النصر العظيم.
+                {mode === 'online' && state.winner === onlineGame?.myPlayerNum
+                  ? 'سقط ملك خصمك. تشرّفت المملكة بهذا النصر العظيم.'
+                  : mode === 'online'
+                    ? 'سقط ملكك. مرة جاية باذن الله.'
+                    : 'سقط ملك الخصم. تشرّفت المملكة بهذا النصر العظيم.'}
               </p>
               <div className="flex gap-3 justify-center flex-wrap">
-                <button className="btn" onClick={() => dispatch({ type: 'NEW_GAME' })}>
-                  مبارزة جديدة
-                </button>
-                <button className="btn btn-crimson" onClick={() => { dispatch({ type: 'NEW_GAME' }); setMode('menu'); }}>
+                {mode !== 'online' && (
+                  <button className="btn" onClick={() => dispatch({ type: 'NEW_GAME' })}>
+                    مبارزة جديدة
+                  </button>
+                )}
+                <button className="btn btn-crimson" onClick={() => {
+                  dispatch({ type: 'NEW_GAME' });
+                  setOnlineGame(null);
+                  setMode('menu');
+                }}>
                   ⟲ القائمة الرئيسية
                 </button>
               </div>
@@ -2983,6 +3199,11 @@
               </h1>
               <div className="flex items-center gap-2">
                 <span className="font-display text-xs text-gray-400">دور {state.turn}</span>
+                {isOnlineMode && (
+                  <span className="font-display text-xs text-blue-300" style={{ padding: '0.2rem 0.5rem', border: '1px solid #2a3a8a', borderRadius: '3px' }}>
+                    🌐 أونلاين
+                  </span>
+                )}
                 <div className="coin-badge" style={{ padding: '0.25rem 0.6rem', fontSize: '0.75rem' }}>
                   <span className="coin-icon" style={{ width: '16px', height: '16px', fontSize: '0.55rem' }}>¢</span>
                   <span>{(profile?.coins ?? 0).toLocaleString('en-US')}</span>
@@ -2991,15 +3212,29 @@
                   📜
                 </button>
                 <button className="btn" style={{ padding: '0.3rem 0.7rem', fontSize: '0.7rem' }} onClick={() => {
+                  if (isOnlineMode) {
+                    if (!confirm('لو خرجت دلوقتي هتخسر المبارزة. متأكد؟')) return;
+                    // surrender: حدّث الـ DB والخصم يكسب
+                    if (onlineGame) {
+                      sb.from('games').update({
+                        status: 'abandoned',
+                        winner_id: onlineGame.myPlayerNum === 1 ? onlineGame.player2_id : onlineGame.player1_id,
+                        updated_at: new Date().toISOString(),
+                      }).eq('id', onlineGame.gameId).then(() => {});
+                    }
+                    setOnlineGame(null);
+                  }
                   dispatch({ type: 'NEW_GAME' }); setMode('menu');
                 }}>
                   ☰
                 </button>
-                <button className="btn btn-crimson" style={{ padding: '0.3rem 0.7rem', fontSize: '0.7rem' }} onClick={() => {
-                  if (confirm('هل أنت متأكد من إنهاء المبارزة وبدء جديدة؟')) dispatch({ type: 'NEW_GAME' });
-                }}>
+                {!isOnlineMode && (
+                  <button className="btn btn-crimson" style={{ padding: '0.3rem 0.7rem', fontSize: '0.7rem' }} onClick={() => {
+                    if (confirm('هل أنت متأكد من إنهاء المبارزة وبدء جديدة؟')) dispatch({ type: 'NEW_GAME' });
+                  }}>
                   ⟲
                 </button>
+                )}
               </div>
             </div>
           </header>
@@ -3014,12 +3249,13 @@
                 <PlayerPanel
                   playerNum={otherPlayerNum}
                   player={state.players[otherPlayerNum]}
-                  isCurrent={false}
+                  isCurrent={state.currentPlayer === otherPlayerNum}
                   viewMode="hidden"
                   kingHp={otherPlayerNum === 1 ? (king1?.hp ?? 0) : (king2?.hp ?? 0)}
                   kingMaxHp={KING_TEMPLATE.maxHp}
+                  customName={isOnlineMode ? onlineGame.opponentName : null}
                 />
-                {/* كروت الخصم — مقلوبة في 2p، مكشوفة في 1p */}
+                {/* كروت الخصم — مقلوبة في 2p/online، مكشوفة في 1p */}
                 <div className="flex gap-1 justify-center mt-2 flex-wrap overflow-x-auto py-1">
                   {state.players[otherPlayerNum].hand.map((cardId, i) =>
                     mode === '1p' ? (
@@ -3041,9 +3277,12 @@
               <div className="relative" style={{ maxWidth: 'min(85vh, 100%)' }}>
                 <div className="grid grid-cols-8 gap-0 border-4 border-yellow-700 bg-black"
                      style={{ width: 'min(85vh, 95vw)', aspectRatio: '1', boxShadow: '0 0 40px rgba(201,169,97,0.2)' }}>
-                  {/* نقلب الرقعة عشان اللاعب الحالي دايمًا يشوف صفه الخلفي تحت (فقط في وضع 2p) */}
+                  {/* نقلب الرقعة عشان اللاعب الحالي دايماً يشوف صفه الخلفي تحت */}
                   {Array.from({ length: BOARD_SIZE }).map((_, displayRow) => {
-                    const flip = mode === '2p' && state.currentPlayer === 2;
+                    let flip;
+                    if (mode === '2p') flip = state.currentPlayer === 2;
+                    else if (mode === 'online') flip = onlineGame?.myPlayerNum === 2;
+                    else flip = false;
                     const actualR = flip ? displayRow : BOARD_SIZE - 1 - displayRow;
                     const isTopRow = displayRow === 0;
                     return Array.from({ length: BOARD_SIZE }).map((_, c) => {
@@ -3062,7 +3301,8 @@
                           currentPlayer={state.currentPlayer}
                           onClick={(r, c) => {
                             if (mode === '1p' && state.currentPlayer === 2) return;
-                            dispatch({ type: 'CLICK_CELL', r, c });
+                            if (mode === 'online' && state.currentPlayer !== onlineGame?.myPlayerNum) return;
+                            syncedDispatch({ type: 'CLICK_CELL', r, c });
                           }}
                         />
                       );
@@ -3071,20 +3311,29 @@
                 </div>
               </div>
 
-              {/* بانل اللاعب الحالي */}
+              {/* بانل اللاعب الأسفل (دايماً أنا في الأونلاين) */}
               <div className="w-full max-w-3xl">
                 <PlayerPanel
-                  playerNum={state.currentPlayer}
+                  playerNum={bottomPlayerNum}
                   player={currentPlayerData}
-                  isCurrent={true}
+                  isCurrent={state.currentPlayer === bottomPlayerNum}
                   viewMode="full"
-                  kingHp={state.currentPlayer === 1 ? (king1?.hp ?? 0) : (king2?.hp ?? 0)}
+                  kingHp={bottomPlayerNum === 1 ? (king1?.hp ?? 0) : (king2?.hp ?? 0)}
                   kingMaxHp={KING_TEMPLATE.maxHp}
+                  customName={isOnlineMode ? (profile?.display_name || onlineGame.myName) : null}
                 />
               </div>
 
-              {/* يد اللاعب الحالي */}
+              {/* يد اللاعب الأسفل */}
               <div className="w-full">
+                {/* بانر "دور خصمك" في الأونلاين */}
+                {isOnlineMode && !isMyTurn && (
+                  <div className="text-center mb-2">
+                    <div className="inline-block px-4 py-2 bg-blue-900/30 border border-blue-700 rounded font-display text-sm text-blue-300 animate-pulse">
+                      ⏳ في انتظار حركة {onlineGame.opponentName}...
+                    </div>
+                  </div>
+                )}
                 {state.pendingPlay && (
                   <div className="flex justify-center mb-2">
                     <div className="px-3 py-1 bg-yellow-900/40 border border-yellow-700 rounded font-display text-sm text-yellow-300">
@@ -3094,11 +3343,11 @@
                       {state.pendingPlay.mode === 'spell' && state.pendingPlay.spellTarget === 'own_unit' && '👉 اختر أحد وحوشك'}
                       {state.pendingPlay.mode === 'spell' && state.pendingPlay.spellTarget === 'own_unit_then_empty' && state.pendingPlay.step === 1 && '👉 اختر الوحش الذي تريد نقله'}
                       {state.pendingPlay.mode === 'spell' && state.pendingPlay.spellTarget === 'own_unit_then_empty' && state.pendingPlay.step === 2 && '👉 اختر الخانة الفارغة في نصفك'}
-                      <button className="mr-3 underline" onClick={() => dispatch({ type: 'CANCEL_PLAY' })}>إلغاء</button>
+                      <button className="mr-3 underline" onClick={() => syncedDispatch({ type: 'CANCEL_PLAY' })}>إلغاء</button>
                     </div>
                   </div>
                 )}
-                <div className="flex gap-2 overflow-x-auto py-3 px-2 justify-center flex-wrap">
+                <div className="flex gap-2 overflow-x-auto py-3 px-2 justify-center flex-wrap" style={{ opacity: isMyTurn ? 1 : 0.5 }}>
                   {currentPlayerData.hand.map((cardId, idx) => {
                     const card = CARD_BY_ID[cardId];
                     const affordable = currentPlayerData.mana >= card.cost;
@@ -3108,18 +3357,20 @@
                         key={`${cardId}-${idx}`}
                         card={card}
                         selected={selected}
-                        affordable={affordable}
+                        affordable={affordable && isMyTurn}
                         onClick={() => {
-                          if (!affordable || (mode === '1p' && state.currentPlayer === 2)) return;
-                          dispatch({ type: 'SELECT_CARD', cardId });
+                          if (!affordable) return;
+                          if (mode === '1p' && state.currentPlayer === 2) return;
+                          if (!isMyTurn) return;
+                          syncedDispatch({ type: 'SELECT_CARD', cardId });
                         }}
                       />
                     );
                   })}
                 </div>
-                {(mode !== '1p' || state.currentPlayer !== 2) && (
+                {(mode !== '1p' || state.currentPlayer !== 2) && isMyTurn && (
                   <div className="flex justify-center mt-2">
-                    <button className="btn" onClick={() => dispatch({ type: 'END_TURN' })}>
+                    <button className="btn" onClick={() => syncedDispatch({ type: 'END_TURN' })}>
                       ⌛ إنهاء الدور
                     </button>
                   </div>
