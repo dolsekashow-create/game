@@ -2196,11 +2196,27 @@
           ]);
           if (!alive) return;
 
-          // فحص الجلسة (مع timeout 5 ثواني)
+          // ── الخطوة الأولى: لو في access_token في الـ URL hash (بعد رجوع OAuth) ──
+          // Supabase محتاج يقرأ الـ hash ويعمل setSession قبل ما getSession() يشتغل
+          const hash = window.location.hash;
+          if (hash && hash.includes('access_token=')) {
+            try {
+              // امسح الـ hash من الـ URL فوراً عشان ما يتشاركش
+              window.history.replaceState(null, '', window.location.pathname + window.location.search);
+              // Supabase v2 بيعالج الـ hash تلقائياً عبر onAuthStateChange
+              // بس لازم ننتظر شوية عشان يكمل
+              await new Promise(res => setTimeout(res, 1500));
+            } catch (e) {
+              console.warn('Hash session parse error:', e);
+            }
+            if (!alive) return;
+          }
+
+          // ── الخطوة الثانية: فحص الجلسة (مع timeout 8 ثواني) ──
           try {
             const result = await Promise.race([
               sb.auth.getSession(),
-              new Promise((_, rej) => setTimeout(() => rej(new Error('timeout')), 5000))
+              new Promise((_, rej) => setTimeout(() => rej(new Error('timeout')), 8000))
             ]);
             const { data: { session } } = result;
             if (alive && session?.user) {
