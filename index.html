@@ -16,13 +16,13 @@
   <!-- Tailwind -->
   <script src="https://cdn.tailwindcss.com"></script>
 
-  <!-- Supabase SDK -->
-  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
-
   <!-- React + Babel -->
   <script crossorigin src="https://unpkg.com/react@18/umd/react.production.min.js"></script>
   <script crossorigin src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js"></script>
   <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
+
+  <!-- Supabase SDK -->
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 
   <style>
     :root {
@@ -577,8 +577,8 @@
     // CARD DATABASE — جميع الكروت (20 كارت) — القيم الافتراضية
     // ════════════════════════════════════════════════════════════
     //
-    // البيانات المحملة من Supabase تطغى على هذه الافتراضات.
-    // عدّل الكروت من لوحة التحكم admin.html بدلاً من تعديل هذا الملف.
+    // البيانات المحمّلة من Supabase (لو موجودة) تطغى على الافتراضات.
+    // عدّل الكروت والصور من admin.html بدلاً من تعديل هذا الملف.
 
     const DEFAULT_CARDS = [
       // ─── UNITS (12) ───
@@ -881,7 +881,7 @@
         movement: KING_TEMPLATE.movement,
         movedThisTurn: false,
         summoningSickness: false,
-        snared: false
+        snareTimer: 0
       };
       board[7][KING_START_COL].unit = {
         instanceId: `p2-king`,
@@ -894,7 +894,7 @@
         movement: KING_TEMPLATE.movement,
         movedThisTurn: false,
         summoningSickness: false,
-        snared: false
+        snareTimer: 0
       };
 
       const deck1 = buildDeck();
@@ -1015,7 +1015,7 @@
           cell.unit = null;
         }
       } else if (effect === 'snare') {
-        unit.snared = true;
+        unit.snareTimer = 2;
         pushLog(state, `${CARD_BY_ID[unit.cardId]?.name_ar || 'الملك'} مقيّد ولن يتحرك الدور التالي.`, 'system');
       } else if (effect === 'bounce') {
         if (!unit.isKing) {
@@ -1091,7 +1091,7 @@
         movement: card.movement,
         movedThisTurn: false,
         summoningSickness: true,
-        snared: false
+        snareTimer: 0
       };
       pushLog(state, `استدعاء: ${card.name_ar} في ${colName(c)}${r+1}`, 'summon');
       return true;
@@ -1201,20 +1201,20 @@
           if (!u) continue;
           if (u.playerNum === ending) {
             u.movedThisTurn = false;
+            if (u.snareTimer > 0) u.snareTimer -= 1;
           }
         }
       }
       // الدور للاعب الجاي
       state.currentPlayer = ending === 1 ? 2 : 1;
       const newPlayerNum = state.currentPlayer;
-      // إلغاء مرض الاستدعاء والقيد لوحوش اللاعب الجاي اللي بقالها دور
+      // إلغاء مرض الاستدعاء لوحوش اللاعب الجاي اللي بقالها دور
       for (let r = 0; r < BOARD_SIZE; r++) {
         for (let c = 0; c < BOARD_SIZE; c++) {
           const u = state.board[r][c].unit;
           if (!u) continue;
           if (u.playerNum === newPlayerNum) {
             u.summoningSickness = false;
-            u.snared = false; // القيد ينتهي عند بداية دورك الجديد
           }
         }
       }
@@ -1236,6 +1236,164 @@
     }
 
     // ════════════════════════════════════════════════════════════
+    // AI LOGIC — الكمبيوتر يلعب بدل اللاعب 2
+    // ════════════════════════════════════════════════════════════
+    // ترجع أكشن واحد ينفّذ في كل tick (useEffect مع setTimeout)
+    function computeAIAction(state, aiState) {
+      const player = state.players[2];
+      const board = state.board;
+
+      // بداية AI — انتقل من idle لـ summon
+      if (aiState.phase === 'idle') aiState.phase = 'summon';
+
+      // لو في pending play معلّق من tick سابقة ونحتاج نكمله
+      if (state.pendingPlay) {
+        const pp = state.pendingPlay;
+        if (pp.mode === 'summon') {
+          for (let c = 0; c < BOARD_SIZE; c++)
+            if (!board[7][c].unit) return { type: 'CLICK_CELL', r: 7, c };
+          aiState.phase = 'trap';
+          return { type: 'CANCEL_PLAY' };
+        }
+        if (pp.mode === 'trap') {
+          for (let r = 4; r < BOARD_SIZE; r++)
+            for (let c = 0; c < BOARD_SIZE; c++)
+              if (!board[r][c].unit && !board[r][c].trap)
+                return { type: 'CLICK_CELL', r, c };
+          aiState.phase = 'spell';
+          return { type: 'CANCEL_PLAY' };
+        }
+        if (pp.mode === 'spell') {
+          const s = pp.spellTarget;
+          if (s === 'any_unit') {
+            let bR=-1,bC=-1,bH=Infinity;
+            for (let r=0;r<BOARD_SIZE;r++) for (let c=0;c<BOARD_SIZE;c++) {
+              const u=board[r][c].unit;
+              if (u&&u.playerNum!==2&&u.hp<bH){bH=u.hp;bR=r;bC=c;}
+            }
+            if(bR>=0)return{type:'CLICK_CELL',r:bR,c:bC};
+            return{type:'CANCEL_PLAY'};
+          }
+          if (s === 'own_unit') {
+            let bR=-1,bC=-1,bD=0;
+            for (let r=0;r<BOARD_SIZE;r++) for (let c=0;c<BOARD_SIZE;c++) {
+              const u=board[r][c].unit;
+              if(u&&u.playerNum===2&&(u.maxHp-u.hp)>bD){bD=u.maxHp-u.hp;bR=r;bC=c;}
+            }
+            if(bR>=0)return{type:'CLICK_CELL',r:bR,c:bC};
+            return{type:'CANCEL_PLAY'};
+          }
+          return{type:'CANCEL_PLAY'};
+        }
+      }
+
+      // لو وحش مختار وعندنا target من حركة سابقة
+      if (state.selected?.kind === 'unit' && aiState.pendingMoveTarget) {
+        const t = aiState.pendingMoveTarget;
+        aiState.pendingMoveTarget = null;
+        return { type: 'CLICK_CELL', r: t.r, c: t.c };
+      }
+
+      // === SUMMON ===
+      if (aiState.phase === 'summon') {
+        for (const cId of player.hand) {
+          const c = CARD_BY_ID[cId];
+          if (c.type === 'unit' && player.mana >= c.cost)
+            return { type: 'SELECT_CARD', cardId: cId };
+        }
+        aiState.phase = 'trap';
+      }
+
+      // === TRAP ===
+      if (aiState.phase === 'trap') {
+        for (const cId of player.hand) {
+          const c = CARD_BY_ID[cId];
+          if (c.type === 'trap' && player.mana >= c.cost)
+            return { type: 'SELECT_CARD', cardId: cId };
+        }
+        aiState.phase = 'spell';
+      }
+
+      // === SPELL ===
+      if (aiState.phase === 'spell') {
+        for (const cId of player.hand) {
+          const c = CARD_BY_ID[cId];
+          if (c.type !== 'spell' || player.mana < c.cost) continue;
+          if (c.target === 'self')
+            return { type: 'SELECT_CARD', cardId: cId };
+          if (c.target === 'any_unit') {
+            for (let r=0;r<BOARD_SIZE;r++) for(let c=0;c<BOARD_SIZE;c++)
+              if (board[r][c].unit && board[r][c].unit.playerNum !== 2)
+                return { type: 'SELECT_CARD', cardId: cId };
+          }
+          if (c.target === 'own_unit') {
+            for (let r=0;r<BOARD_SIZE;r++) for(let c=0;c<BOARD_SIZE;c++) {
+              const u=board[r][c].unit;
+              if (u&&u.playerNum===2&&u.hp<u.maxHp)
+                return { type: 'SELECT_CARD', cardId: cId };
+            }
+          }
+        }
+        aiState.phase = 'move';
+        aiState.unitIndex = 0;
+      }
+
+      // === MOVE/ATTACK ===
+      if (aiState.phase === 'move') {
+        if (!aiState.unitList) {
+          aiState.unitList = [];
+          for (let r=0;r<BOARD_SIZE;r++) for(let c=0;c<BOARD_SIZE;c++) {
+            const u=board[r][c].unit;
+            if(u&&u.playerNum===2)aiState.unitList.push({r,c});
+          }
+        }
+        while (aiState.unitIndex < aiState.unitList.length) {
+          const {r,c}=aiState.unitList[aiState.unitIndex];
+          aiState.unitIndex++;
+          const u=board[r][c].unit;
+          if(!u||u.movedThisTurn||u.summoningSickness||u.snareTimer>0)continue;
+          const moves=getMovementSquares(u,r,c,board,2);
+          if(moves.length===0)continue;
+          // أفضّل الهجوم على الملك ثم الأقل صحة
+          for(const m of moves){
+            if(board[m.r][m.c].unit){
+              aiState.pendingMoveTarget=m;
+              return{type:'CLICK_CELL',r,c};
+            }
+          }
+          const empty=moves.filter(m=>!board[m.r][m.c].unit);
+          if(empty.length>0){
+            let best=empty[0],bestD=Infinity;
+            for(const m of empty){
+              let md=Infinity;
+              for(let er=0;er<BOARD_SIZE;er++)for(let ec=0;ec<BOARD_SIZE;ec++){
+                const e=board[er][ec].unit;
+                if(e&&e.playerNum!==2){
+                  const d=Math.abs(m.r-er)+Math.abs(m.c-ec);
+                  if(d<md)md=d;
+                }
+              }
+              if(md<bestD){bestD=md;best=m;}
+            }
+            aiState.pendingMoveTarget=best;
+            return{type:'CLICK_CELL',r,c};
+          }
+        }
+        aiState.phase='end_turn';
+        aiState.unitList=null;
+      }
+
+      // === END TURN ===
+      if (aiState.phase === 'end_turn') {
+        aiState.phase='idle';
+        aiState.unitList=null;
+        return{type:'END_TURN'};
+      }
+
+      return null;
+    }
+
+    // ════════════════════════════════════════════════════════════
     // REDUCER
     // ════════════════════════════════════════════════════════════
     function deepCloneState(s) {
@@ -1244,7 +1402,8 @@
     }
 
     function gameReducer(state, action) {
-      if (state.winner) return state;
+      // لازم NEW_GAME يعدّي حتى لو في فائز
+      if (state.winner && action.type !== 'NEW_GAME') return state;
       const s = deepCloneState(state);
       s.bannerText = null; // مسح اللافتة من الدور السابق
 
@@ -1350,7 +1509,7 @@
               return s;
             }
             // الحركات المسموح بها
-            const valid = (unit.summoningSickness || unit.movedThisTurn || unit.snared)
+            const valid = (unit.summoningSickness || unit.movedThisTurn || unit.snareTimer > 0)
               ? []
               : getMovementSquares(unit, sr, sc, s.board, s.currentPlayer);
             const target = valid.find(v => v.r === r && v.c === c);
@@ -1394,16 +1553,8 @@
           return s;
         }
 
-        case 'CANCEL_PLAY':
-          s.pendingPlay = null;
-          s.selected = null;
-          return s;
-
-        case 'END_TURN':
-          endTurn(s);
-          return s;
       }
-      return state;
+      return s;
     }
 
     // ════════════════════════════════════════════════════════════
@@ -1461,7 +1612,7 @@
         const unit = state.board[r][c].unit;
         if (unit && unit.playerNum === player) {
           highlights[`${r},${c}`] = 'selected';
-          if (!unit.summoningSickness && !unit.movedThisTurn && !unit.snared) {
+          if (!unit.summoningSickness && !unit.movedThisTurn && unit.snareTimer <= 0) {
             const moves = getMovementSquares(unit, r, c, state.board, player);
             for (const m of moves) {
               const dest = state.board[m.r][m.c];
@@ -1518,7 +1669,7 @@
     // ════════════════════════════════════════════════════════════
     // مكوّن: الخانة على الرقعة
     // ════════════════════════════════════════════════════════════
-    function BoardCell({ r, c, cell, highlight, onClick, isLight, currentPlayer }) {
+    function BoardCell({ r, c, cell, highlight, onClick, isLight, currentPlayer, isTopRow }) {
       const u = cell.unit;
       const trap = cell.trap;
       const card = u && !u.isKing ? CARD_BY_ID[u.cardId] : null;
@@ -1530,7 +1681,7 @@
         <div className={className} onClick={() => onClick(r, c)}>
           {/* coordinate labels في الزوايا */}
           {c === 0 && <div className="coord-label row">{r+1}</div>}
-          {r === 0 && <div className="coord-label col">{colName(c)}</div>}
+          {isTopRow && <div className="coord-label col">{colName(c)}</div>}
 
           {/* فخ */}
           {trap && (
@@ -1541,7 +1692,7 @@
 
           {/* وحش */}
           {u && (
-            <div className={`piece p${u.playerNum} ${u.isKing ? 'king' : ''} ${u.summoningSickness || u.snared ? 'sick' : ''}`}>
+            <div className={`piece p${u.playerNum} ${u.isKing ? 'king' : ''} ${u.summoningSickness || u.snareTimer > 0 ? 'sick' : ''}`}>
               <div className="piece-name">
                 {u.isKing ? '👑' : (card?.icon || '?')}
                 <div style={{ fontSize: '0.5rem', marginTop: '2px' }}>
@@ -1600,7 +1751,7 @@
     }
 
     // ════════════════════════════════════════════════════════════
-    // المكوّن الرئيسي — Shell يحمّل البيانات أولاً ثم يعرض اللعبة
+    // المكوّن الرئيسي — Shell يحمّل البيانات من Supabase ثم Game
     // ════════════════════════════════════════════════════════════
     function App() {
       const [loadState, setLoadState] = useState('loading'); // loading | ready | offline
@@ -1640,33 +1791,53 @@
 
     function Game() {
       const [state, dispatch] = useReducer(gameReducer, undefined, makeInitialState);
+      const [mode, setMode] = useState('menu'); // 'menu' | '1p' | '2p'
       const [showRules, setShowRules] = useState(false);
       const [showPassScreen, setShowPassScreen] = useState(false);
       const [previousPlayer, setPreviousPlayer] = useState(1);
       const logRef = useRef(null);
+      const aiRef = useRef({ phase: 'idle', pendingMoveTarget: null, unitList: null, unitIndex: 0 });
 
       // عند تغيير الدور، اعرض شاشة "سلّم الجهاز"
       useEffect(() => {
         if (state.currentPlayer !== previousPlayer && !state.winner) {
-          setShowPassScreen(true);
           setPreviousPlayer(state.currentPlayer);
+          if (mode === '1p') {
+            if (state.currentPlayer === 1) setShowPassScreen(true);
+          } else {
+            setShowPassScreen(true);
+          }
         }
-      }, [state.currentPlayer, state.winner]);
+      }, [state.currentPlayer, state.winner, mode]);
+
+      // AI — يلعب دور اللاعب 2 تلقائياً
+      useEffect(() => {
+        if (state.winner || mode !== '1p' || state.currentPlayer !== 2) {
+          aiRef.current = { phase: 'idle', pendingMoveTarget: null, unitList: null, unitIndex: 0 };
+          return;
+        }
+        const timer = setTimeout(() => {
+          const action = computeAIAction(state, aiRef.current);
+          if (action) dispatch(action);
+        }, 700);
+        return () => clearTimeout(timer);
+      }, [state, mode]);
 
       // تمرير السجل لآخر سطر
       useEffect(() => {
         if (logRef.current) logRef.current.scrollTop = logRef.current.scrollHeight;
       }, [state.log.length]);
 
-      // عند ظهور لافتة
+      // عند ظهور لافتة (ماعدا في دور AI بوضع 1p)
       const [showBanner, setShowBanner] = useState(null);
       useEffect(() => {
         if (state.bannerText) {
+          if (mode === '1p' && state.currentPlayer === 2) return;
           setShowBanner(state.bannerText);
           const t = setTimeout(() => setShowBanner(null), 1800);
           return () => clearTimeout(t);
         }
-      }, [state.bannerText]);
+      }, [state.bannerText, mode]);
 
       const highlights = useMemo(() => computeHighlights(state), [state]);
       const currentPlayerData = state.players[state.currentPlayer];
@@ -1684,6 +1855,53 @@
       const king1 = findKing(1);
       const king2 = findKing(2);
 
+      // شاشة البداية
+      if (mode === 'menu') {
+        return (
+          <div className="min-h-screen flex items-center justify-center p-4">
+            <div className="modal text-center max-w-lg">
+              <div className="text-6xl mb-4">⚜</div>
+              <h1 className="font-display text-4xl text-yellow-400 mb-2">Duelist's Gambit</h1>
+              <p className="font-body text-lg text-gray-400 mb-6">مبارزة الشطرنج السحري</p>
+              <div className="ornament-line mb-6"><span>⚔</span></div>
+              <p className="font-body text-base text-gray-300 mb-8">
+                حرب استراتيجية على رقعة 8×8. استدعَ الوحوش، انصب الفخاخ، وأسقط ملك الخصم.
+              </p>
+              <div className="flex flex-col sm:flex-row gap-4 justify-center">
+                <button className="btn text-lg px-8 py-4" onClick={() => setMode('1p')}>
+                  🎮 لاعب واحد
+                  <div className="font-body text-xs text-gray-400 mt-1">ضد الكمبيوتر</div>
+                </button>
+                <button className="btn text-lg px-8 py-4" onClick={() => setMode('2p')}>
+                  👥 لاعبان
+                  <div className="font-body text-xs text-gray-400 mt-1">مشاركة الجهاز</div>
+                </button>
+              </div>
+              <button className="mt-8 text-gray-500 underline text-sm" onClick={() => setShowRules(true)}>
+                📜 قواعد اللعبة
+              </button>
+              {showRules && (
+                <div className="modal-backdrop" onClick={() => setShowRules(false)}>
+                  <div className="modal" onClick={e => e.stopPropagation()}>
+                    <h2 className="font-display text-2xl text-yellow-400 mb-4">⚜ قواعد اللعبة ⚜</h2>
+                    <div className="font-body text-base space-y-3 text-gray-200 text-right">
+                      <p><b className="text-yellow-300">الهدف:</b> اقتل ملك الخصم (HP = 0).</p>
+                      <p><b className="text-yellow-300">المانا:</b> تبدأ بـ 1 وتزيد 1 كل دور حتى 10.</p>
+                      <p><b className="text-yellow-300">الاستدعاء:</b> الوحوش توضع في الصف الخلفي فقط.</p>
+                      <p><b className="text-yellow-300">الحركة:</b> اضغط وحشك ثم خانة مضاءة.</p>
+                      <p><b className="text-yellow-300">القتال:</b> طرفا الصدام يأخذان ضرراً بقوة الآخر.</p>
+                      <p><b className="text-yellow-300">السحر:</b> يُلعب مرة واحدة بأثر فوري.</p>
+                      <p><b className="text-yellow-300">الفخاخ:</b> توضع مقلوبة في نصفك وتنطلق عند دخول العدو.</p>
+                    </div>
+                    <button className="btn mt-6" onClick={() => setShowRules(false)}>إغلاق</button>
+                  </div>
+                </div>
+              )}
+            </div>
+          </div>
+        );
+      }
+
       // الفائز
       if (state.winner) {
         return (
@@ -1691,15 +1909,20 @@
             <div className="modal text-center">
               <div className="font-display text-4xl text-yellow-400 mb-4">⚜ النصر ⚜</div>
               <div className="font-display text-2xl mb-6" style={{ color: state.winner === 1 ? '#d4a04a' : '#a0b8ff' }}>
-                اللاعب {state.winner} انتصر!
+                {mode === '1p' && state.winner === 2 ? '💻 الكمبيوتر انتصر!' : `اللاعب ${state.winner} انتصر!`}
               </div>
               <div className="ornament-line mb-6"><span>⚔</span></div>
               <p className="font-body text-lg mb-6 text-gray-300">
                 سقط ملك الخصم. تشرّفت المملكة بهذا النصر العظيم.
               </p>
-              <button className="btn" onClick={() => dispatch({ type: 'NEW_GAME' })}>
-                مبارزة جديدة
-              </button>
+              <div className="flex gap-3 justify-center flex-wrap">
+                <button className="btn" onClick={() => dispatch({ type: 'NEW_GAME' })}>
+                  مبارزة جديدة
+                </button>
+                <button className="btn btn-crimson" onClick={() => { dispatch({ type: 'NEW_GAME' }); setMode('menu'); }}>
+                  ⟲ القائمة الرئيسية
+                </button>
+              </div>
             </div>
           </div>
         );
@@ -1710,19 +1933,21 @@
           {/* لافتة الدور */}
           {showBanner && <div className="phase-banner">{showBanner}</div>}
 
-          {/* شاشة "سلّم الجهاز" */}
+          {/* شاشة "سلّم الجهاز" / "دورك" */}
           {showPassScreen && (
             <div className="modal-backdrop">
               <div className="modal text-center">
                 <div className="font-display text-3xl text-yellow-400 mb-4">📜</div>
                 <div className="font-display text-2xl mb-4" style={{ color: state.currentPlayer === 1 ? '#d4a04a' : '#a0b8ff' }}>
-                  دور اللاعب {state.currentPlayer}
+                  {mode === '1p' && state.currentPlayer === 1 ? '🎮 دورك الآن' : `دور اللاعب ${state.currentPlayer}`}
                 </div>
                 <p className="font-body text-lg mb-6 text-gray-300">
-                  سلّم الجهاز للاعب {state.currentPlayer}. عندما يكون مستعداً، اضغط الزر.
+                  {mode === '1p' && state.currentPlayer === 1
+                    ? 'اضغط الزر عندما تكون مستعداً.'
+                    : `سلّم الجهاز للاعب ${state.currentPlayer}. عندما يكون مستعداً، اضغط الزر.`}
                 </p>
                 <button className="btn" onClick={() => setShowPassScreen(false)}>
-                  أنا مستعد ⚔
+                  {mode === '1p' && state.currentPlayer === 1 ? 'أبدأ ⚔' : 'أنا مستعد ⚔'}
                 </button>
               </div>
             </div>
@@ -1763,6 +1988,11 @@
                 <button className="btn" style={{ padding: '0.4rem 0.9rem', fontSize: '0.75rem' }} onClick={() => setShowRules(true)}>
                   📜 القواعد
                 </button>
+                <button className="btn" style={{ padding: '0.4rem 0.9rem', fontSize: '0.75rem' }} onClick={() => {
+                  dispatch({ type: 'NEW_GAME' }); setMode('menu');
+                }}>
+                  ☰ قائمة
+                </button>
                 <button className="btn btn-crimson" style={{ padding: '0.4rem 0.9rem', fontSize: '0.75rem' }} onClick={() => {
                   if (confirm('هل أنت متأكد من إنهاء المبارزة وبدء جديدة؟')) dispatch({ type: 'NEW_GAME' });
                 }}>
@@ -1787,17 +2017,21 @@
                   kingHp={otherPlayerNum === 1 ? (king1?.hp ?? 0) : (king2?.hp ?? 0)}
                   kingMaxHp={KING_TEMPLATE.maxHp}
                 />
-                {/* ظهر كروت الخصم (مقلوبة) */}
-                <div className="flex gap-1 justify-center mt-2 flex-wrap">
-                  {state.players[otherPlayerNum].hand.map((_, i) => (
-                    CARD_BACK_IMAGE ? (
-                      <div key={i} style={{ width: '40px', height: '58px', borderRadius: '4px', overflow: 'hidden', border: '1.5px solid var(--gold-dim)', boxShadow: '0 3px 8px rgba(0,0,0,0.5)' }}>
-                        <img src={CARD_BACK_IMAGE} alt="card back" style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
-                      </div>
+                {/* كروت الخصم — مقلوبة في 2p، مكشوفة في 1p */}
+                <div className="flex gap-1 justify-center mt-2 flex-wrap overflow-x-auto py-1">
+                  {state.players[otherPlayerNum].hand.map((cardId, i) =>
+                    mode === '1p' ? (
+                      <CardView key={`ai-${i}`} card={CARD_BY_ID[cardId]} selected={false} affordable={true} onClick={() => {}} />
                     ) : (
-                      <div key={i} className="card-back" style={{ width: '40px', minHeight: '58px', fontSize: '0.9rem' }}>⚜</div>
+                      CARD_BACK_IMAGE ? (
+                        <div key={i} style={{ width: '40px', height: '58px', borderRadius: '4px', overflow: 'hidden', border: '1.5px solid var(--gold-dim)', boxShadow: '0 3px 8px rgba(0,0,0,0.5)' }}>
+                          <img src={CARD_BACK_IMAGE} alt="card back" style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
+                        </div>
+                      ) : (
+                        <div key={i} className="card-back" style={{ width: '40px', minHeight: '58px', fontSize: '0.9rem' }}>⚜</div>
+                      )
                     )
-                  ))}
+                  )}
                 </div>
               </div>
 
@@ -1805,11 +2039,11 @@
               <div className="relative" style={{ maxWidth: 'min(85vh, 100%)' }}>
                 <div className="grid grid-cols-8 gap-0 border-4 border-yellow-700 bg-black"
                      style={{ width: 'min(85vh, 95vw)', aspectRatio: '1', boxShadow: '0 0 40px rgba(201,169,97,0.2)' }}>
-                  {/* عرض الرقعة من فوق لتحت (الصف 7 فوق للاعب 2، الصف 0 تحت للاعب 1) */}
-                  {/* لكن اللاعب الحالي يفترض إنه شايف صفه تحت، فنخلي العرض بالنسبة للاعب 1 دايماً */}
+                  {/* نقلب الرقعة عشان اللاعب الحالي دايمًا يشوف صفه الخلفي تحت (فقط في وضع 2p) */}
                   {Array.from({ length: BOARD_SIZE }).map((_, displayRow) => {
-                    // عشان اللاعب 1 يشوف نفسه تحت، نقلب الترتيب الرسومي
-                    const actualR = BOARD_SIZE - 1 - displayRow;
+                    const flip = mode === '2p' && state.currentPlayer === 2;
+                    const actualR = flip ? displayRow : BOARD_SIZE - 1 - displayRow;
+                    const isTopRow = displayRow === 0;
                     return Array.from({ length: BOARD_SIZE }).map((_, c) => {
                       const cell = state.board[actualR][c];
                       const hl = highlights[`${actualR},${c}`];
@@ -1822,8 +2056,12 @@
                           cell={cell}
                           highlight={hl}
                           isLight={isLight}
+                          isTopRow={isTopRow}
                           currentPlayer={state.currentPlayer}
-                          onClick={(r, c) => dispatch({ type: 'CLICK_CELL', r, c })}
+                          onClick={(r, c) => {
+                            if (mode === '1p' && state.currentPlayer === 2) return;
+                            dispatch({ type: 'CLICK_CELL', r, c });
+                          }}
                         />
                       );
                     });
@@ -1870,18 +2108,25 @@
                         selected={selected}
                         affordable={affordable}
                         onClick={() => {
-                          if (!affordable) return;
+                          if (!affordable || (mode === '1p' && state.currentPlayer === 2)) return;
                           dispatch({ type: 'SELECT_CARD', cardId });
                         }}
                       />
                     );
                   })}
                 </div>
-                <div className="flex justify-center mt-2">
-                  <button className="btn" onClick={() => dispatch({ type: 'END_TURN' })}>
-                    ⌛ إنهاء الدور
-                  </button>
-                </div>
+                {(mode !== '1p' || state.currentPlayer !== 2) && (
+                  <div className="flex justify-center mt-2">
+                    <button className="btn" onClick={() => dispatch({ type: 'END_TURN' })}>
+                      ⌛ إنهاء الدور
+                    </button>
+                  </div>
+                )}
+                {mode === '1p' && state.currentPlayer === 2 && (
+                  <div className="text-center text-yellow-500 font-display text-sm mt-2 animate-pulse">
+                    💻 الكمبيوتر يلعب دوره...
+                  </div>
+                )}
               </div>
             </div>
 
