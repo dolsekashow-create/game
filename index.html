@@ -2205,9 +2205,14 @@
             const { data: { session } } = result;
             if (alive && session?.user) {
               setUser(session.user);
-              const { data: p } = await sb.from('profiles').select('*').eq('id', session.user.id).maybeSingle();
-              if (alive && p) setProfile(p);
-              if (alive) setBootState('ready');
+              try {
+                const { data: p } = await sb.from('profiles').select('*').eq('id', session.user.id).maybeSingle();
+                if (alive) setProfile(p);
+              } catch (e) {
+                console.warn('Profile fetch failed:', e);
+              } finally {
+                if (alive) setBootState('ready');
+              }
             }
           } catch (e) {
             console.warn('Auth check failed or timed out:', e);
@@ -2220,10 +2225,21 @@
           if (!alive) return;
           if (session?.user) {
             setUser(session.user);
-            const { data: p } = await sb.from('profiles').select('*').eq('id', session.user.id).maybeSingle();
-            if (alive) {
-              setProfile(p);
-              setBootState('ready');
+            try {
+              // للمستخدمين الجدد: أنشئ بروفايل لو مش موجود
+              if (event === 'SIGNED_IN') {
+                await sb.from('profiles').upsert({
+                  id: session.user.id,
+                  display_name: session.user.user_metadata?.full_name || session.user.email?.split('@')[0] || 'لاعب',
+                  avatar_url: session.user.user_metadata?.avatar_url || null,
+                }, { onConflict: 'id', ignoreDuplicates: true });
+              }
+              const { data: p } = await sb.from('profiles').select('*').eq('id', session.user.id).maybeSingle();
+              if (alive) setProfile(p);
+            } catch (e) {
+              console.warn('Profile fetch/upsert failed:', e);
+            } finally {
+              if (alive) setBootState('ready');
             }
           } else {
             setUser(null);
