@@ -2188,14 +2188,28 @@
       // تحميل أولي
       useEffect(() => {
         let alive = true;
+        // timeout عشان لو Supabase مش بترد، نعدّي للـ login بعد 8 ثواني
+        const failsafe = setTimeout(() => {
+          if (alive && bootState === 'loading') {
+            console.warn('Boot timeout — falling through to login');
+            setBootState('login');
+          }
+        }, 8000);
         (async () => {
-          // 1) بيانات الكروت
-          await loadFromSupabase();
+          // 1) بيانات الكروت (مع timeout)
+          await Promise.race([
+            loadFromSupabase(),
+            new Promise(res => setTimeout(res, 6000))
+          ]);
           if (!alive) return;
 
-          // 2) فحص الجلسة
+          // 2) فحص الجلسة (مع timeout)
           try {
-            const { data: { session } } = await sb.auth.getSession();
+            const sessionResult = await Promise.race([
+              sb.auth.getSession(),
+              new Promise((_, rej) => setTimeout(() => rej(new Error('timeout')), 6000))
+            ]);
+            const { data: { session } } = sessionResult;
             if (alive && session?.user) {
               setUser(session.user);
               const { data: p } = await sb.from('profiles').select('*').eq('id', session.user.id).maybeSingle();
@@ -2208,6 +2222,7 @@
             console.warn('Auth check failed:', e);
             if (alive) setBootState('login');
           }
+          clearTimeout(failsafe);
         })();
 
         // استمع للتغيرات
@@ -2227,7 +2242,7 @@
           }
         });
 
-        return () => { alive = false; subscription?.unsubscribe(); };
+        return () => { alive = false; clearTimeout(failsafe); subscription?.unsubscribe(); };
       }, []);
 
       // إعادة تحميل البروفايل (مثلاً بعد لعبة عشان نشوف العملات الجديدة)
