@@ -558,6 +558,367 @@
     @media (max-width: 1100px) {
       .card { width: 110px; min-height: 165px; }
     }
+
+    /* ═══════════════════════════════════════════════════════ */
+    /* MOBILE APP STYLES — تصميم تطبيق أندرويد                  */
+    /* ═══════════════════════════════════════════════════════ */
+    .app-container {
+      max-width: 480px;
+      margin: 0 auto;
+      min-height: 100vh;
+      background: var(--bg-deep);
+      box-shadow: 0 0 40px rgba(0,0,0,0.5);
+      position: relative;
+    }
+    @media (max-width: 500px) {
+      .app-container { box-shadow: none; max-width: 100%; }
+    }
+
+    /* App header (sticky top bar) */
+    .app-header {
+      position: sticky;
+      top: 0;
+      z-index: 100;
+      background: linear-gradient(180deg, rgba(15,12,24,0.98), rgba(15,12,24,0.92));
+      backdrop-filter: blur(12px);
+      border-bottom: 1px solid rgba(201,169,97,0.2);
+      padding: 0.75rem 1rem;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+    }
+
+    /* Coin badge */
+    .coin-badge {
+      display: inline-flex;
+      align-items: center;
+      gap: 0.4rem;
+      padding: 0.35rem 0.8rem;
+      background: linear-gradient(135deg, rgba(232,200,118,0.2), rgba(201,169,97,0.1));
+      border: 1px solid var(--gold);
+      border-radius: 999px;
+      font-family: 'JetBrains Mono', monospace;
+      font-weight: 700;
+      font-size: 0.9rem;
+      color: var(--gold-bright);
+      box-shadow: 0 2px 8px rgba(201,169,97,0.2), inset 0 1px 0 rgba(255,255,255,0.1);
+    }
+    .coin-badge .coin-icon {
+      width: 22px;
+      height: 22px;
+      border-radius: 50%;
+      background: radial-gradient(circle at 35% 30%, #ffe680, #d4a04a 60%, #6b4a1a 100%);
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 0.7rem;
+      color: #4a2d08;
+      font-weight: 900;
+      box-shadow: 0 0 6px rgba(232,200,118,0.5);
+    }
+
+    /* Profile avatar small */
+    .avatar-sm {
+      width: 36px;
+      height: 36px;
+      border-radius: 50%;
+      border: 2px solid var(--gold);
+      object-fit: cover;
+      cursor: pointer;
+      transition: transform 0.15s;
+    }
+    .avatar-sm:active { transform: scale(0.95); }
+
+    /* Login screen */
+    .login-screen {
+      min-height: 100vh;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      padding: 2rem 1.5rem;
+      background:
+        radial-gradient(ellipse at 30% 20%, rgba(196,52,52,0.15) 0%, transparent 50%),
+        radial-gradient(ellipse at 70% 80%, rgba(107,140,255,0.12) 0%, transparent 50%),
+        var(--bg-deep);
+    }
+    .login-logo {
+      font-size: 5rem;
+      margin-bottom: 0.5rem;
+      text-shadow: 0 0 40px rgba(201,169,97,0.5);
+      animation: float 3s ease-in-out infinite;
+    }
+    @keyframes float {
+      0%, 100% { transform: translateY(0); }
+      50% { transform: translateY(-6px); }
+    }
+    .login-title {
+      font-family: 'Cinzel', serif;
+      font-size: 2rem;
+      color: var(--gold-bright);
+      text-align: center;
+      letter-spacing: 0.06em;
+      margin-bottom: 0.5rem;
+    }
+    .login-subtitle {
+      font-family: 'Cormorant Garamond', serif;
+      font-size: 1.1rem;
+      color: var(--text-dim);
+      text-align: center;
+      margin-bottom: 2.5rem;
+    }
+    .login-card {
+      width: 100%;
+      max-width: 360px;
+      background: linear-gradient(165deg, rgba(26,22,34,0.9) 0%, rgba(16,12,24,0.95) 100%);
+      border: 1px solid rgba(201,169,97,0.3);
+      border-radius: 16px;
+      padding: 1.5rem;
+      box-shadow: 0 20px 60px rgba(0,0,0,0.5);
+    }
+
+    /* Big primary button (Google) */
+    .btn-google {
+      width: 100%;
+      padding: 0.85rem;
+      background: white;
+      color: #1a1a1a;
+      border-radius: 8px;
+      border: none;
+      font-family: 'Cormorant Garamond', serif;
+      font-size: 1.05rem;
+      font-weight: 600;
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 0.7rem;
+      transition: all 0.15s;
+      box-shadow: 0 4px 12px rgba(0,0,0,0.3);
+    }
+    .btn-google:hover { background: #f5f5f5; transform: translateY(-1px); box-shadow: 0 6px 16px rgba(0,0,0,0.4); }
+    .btn-google:active { transform: translateY(0); }
+    .google-icon {
+      width: 22px;
+      height: 22px;
+    }
+
+    /* Login divider */
+    .login-divider {
+      display: flex;
+      align-items: center;
+      gap: 0.5rem;
+      margin: 1rem 0;
+      color: var(--text-dim);
+      font-size: 0.85rem;
+    }
+    .login-divider::before, .login-divider::after {
+      content: "";
+      flex: 1;
+      height: 1px;
+      background: rgba(201,169,97,0.2);
+    }
+
+    /* Input field */
+    .input-mobile {
+      width: 100%;
+      padding: 0.85rem 1rem;
+      background: rgba(0,0,0,0.4);
+      border: 1px solid rgba(201,169,97,0.25);
+      color: var(--text-soft);
+      border-radius: 8px;
+      font-family: 'Cormorant Garamond', 'Amiri', serif;
+      font-size: 1rem;
+      transition: all 0.15s;
+      margin-bottom: 0.7rem;
+    }
+    .input-mobile:focus {
+      outline: none;
+      border-color: var(--gold);
+      box-shadow: 0 0 0 3px rgba(201,169,97,0.15);
+    }
+    .input-mobile::placeholder { color: rgba(216,210,196,0.4); }
+
+    .btn-primary-mobile {
+      width: 100%;
+      padding: 0.85rem;
+      background: linear-gradient(135deg, var(--gold), #b8954a);
+      color: #1a1a1a;
+      border: none;
+      border-radius: 8px;
+      font-family: 'Cinzel', serif;
+      font-size: 1rem;
+      font-weight: 700;
+      letter-spacing: 0.05em;
+      cursor: pointer;
+      transition: all 0.15s;
+      box-shadow: 0 4px 12px rgba(201,169,97,0.3);
+    }
+    .btn-primary-mobile:hover { transform: translateY(-1px); box-shadow: 0 6px 16px rgba(201,169,97,0.4); }
+    .btn-primary-mobile:active { transform: translateY(0); }
+    .btn-primary-mobile:disabled { opacity: 0.5; cursor: not-allowed; }
+
+    /* Tab switcher */
+    .auth-tabs {
+      display: flex;
+      gap: 0.5rem;
+      margin-bottom: 1rem;
+      background: rgba(0,0,0,0.3);
+      padding: 0.25rem;
+      border-radius: 8px;
+    }
+    .auth-tab {
+      flex: 1;
+      padding: 0.5rem;
+      text-align: center;
+      font-family: 'Cinzel', serif;
+      font-size: 0.85rem;
+      color: var(--text-dim);
+      border-radius: 6px;
+      cursor: pointer;
+      transition: all 0.15s;
+    }
+    .auth-tab.active {
+      background: var(--gold);
+      color: #1a1a1a;
+      font-weight: 700;
+    }
+
+    /* Play card (home screen) */
+    .play-card {
+      width: 100%;
+      padding: 1rem 1.2rem;
+      background: linear-gradient(135deg, rgba(26,22,34,0.8) 0%, rgba(16,12,24,0.9) 100%);
+      border: 1px solid rgba(201,169,97,0.25);
+      border-radius: 12px;
+      cursor: pointer;
+      transition: all 0.2s;
+      margin-bottom: 0.8rem;
+      display: flex;
+      align-items: center;
+      gap: 1rem;
+      text-align: right;
+    }
+    .play-card:hover:not(.disabled) {
+      transform: translateY(-2px);
+      border-color: var(--gold);
+      box-shadow: 0 8px 24px rgba(201,169,97,0.2);
+    }
+    .play-card:active:not(.disabled) { transform: translateY(0); }
+    .play-card.disabled { opacity: 0.5; cursor: not-allowed; }
+    .play-card.featured {
+      border-color: var(--gold);
+      background: linear-gradient(135deg, rgba(201,169,97,0.15) 0%, rgba(120,80,30,0.1) 100%);
+    }
+    .play-card-icon {
+      width: 52px;
+      height: 52px;
+      border-radius: 12px;
+      background: linear-gradient(135deg, rgba(201,169,97,0.2), rgba(107,140,255,0.1));
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 1.8rem;
+      flex-shrink: 0;
+    }
+    .play-card-title {
+      font-family: 'Cinzel', serif;
+      font-size: 1.05rem;
+      color: var(--gold-bright);
+      margin-bottom: 0.15rem;
+    }
+    .play-card-desc {
+      font-family: 'Cormorant Garamond', 'Amiri', serif;
+      font-size: 0.85rem;
+      color: var(--text-dim);
+    }
+    .play-card-cost {
+      margin-right: auto;
+      display: flex;
+      align-items: center;
+      gap: 0.3rem;
+      padding: 0.3rem 0.7rem;
+      background: rgba(0,0,0,0.4);
+      border-radius: 999px;
+      font-family: 'JetBrains Mono', monospace;
+      font-size: 0.85rem;
+      color: var(--gold-bright);
+      border: 1px solid rgba(201,169,97,0.3);
+    }
+
+    /* Stats card */
+    .stats-grid {
+      display: grid;
+      grid-template-columns: repeat(3, 1fr);
+      gap: 0.5rem;
+      margin-bottom: 1.5rem;
+    }
+    .stat-tile {
+      background: linear-gradient(135deg, rgba(26,22,34,0.6), rgba(16,12,24,0.8));
+      border: 1px solid rgba(201,169,97,0.2);
+      border-radius: 10px;
+      padding: 0.7rem 0.5rem;
+      text-align: center;
+    }
+    .stat-value {
+      font-family: 'Cinzel', serif;
+      font-size: 1.4rem;
+      color: var(--gold-bright);
+      font-weight: 700;
+    }
+    .stat-label {
+      font-family: 'Cormorant Garamond', serif;
+      font-size: 0.7rem;
+      color: var(--text-dim);
+      letter-spacing: 0.05em;
+      margin-top: 0.15rem;
+    }
+
+    /* Section heading */
+    .section-heading {
+      font-family: 'Cinzel', serif;
+      font-size: 0.85rem;
+      color: var(--gold-dim);
+      letter-spacing: 0.1em;
+      text-transform: uppercase;
+      margin: 1.5rem 0 0.7rem;
+      padding: 0 0.3rem;
+    }
+
+    /* Profile menu (dropdown when avatar clicked) */
+    .profile-menu {
+      position: absolute;
+      top: 100%;
+      left: 1rem;
+      margin-top: 0.5rem;
+      background: linear-gradient(165deg, #1a1622, #100c18);
+      border: 1px solid rgba(201,169,97,0.3);
+      border-radius: 10px;
+      padding: 0.5rem;
+      min-width: 220px;
+      z-index: 200;
+      box-shadow: 0 12px 32px rgba(0,0,0,0.6);
+    }
+    .profile-menu-header {
+      padding: 0.7rem 0.7rem 0.5rem;
+      border-bottom: 1px solid rgba(201,169,97,0.15);
+      margin-bottom: 0.3rem;
+    }
+    .profile-menu-item {
+      display: flex;
+      align-items: center;
+      gap: 0.6rem;
+      padding: 0.7rem;
+      cursor: pointer;
+      border-radius: 6px;
+      transition: background 0.1s;
+      font-family: 'Cormorant Garamond', 'Amiri', serif;
+      color: var(--text-soft);
+      font-size: 0.95rem;
+    }
+    .profile-menu-item:hover { background: rgba(201,169,97,0.1); }
+    .profile-menu-item.danger { color: #ff6464; }
+    .profile-menu-item.danger:hover { background: rgba(255,100,100,0.1); }
   </style>
 </head>
 <body>
@@ -1760,80 +2121,231 @@
     }
 
     // ════════════════════════════════════════════════════════════
-    // المكوّن الرئيسي — Shell يحمّل البيانات من Supabase ثم Game
+    // LoginScreen — شاشة تسجيل الدخول (إجبارية)
+    // ════════════════════════════════════════════════════════════
+    function LoginScreen({ onGoogle, onEmailSubmit }) {
+      const [authTab, setAuthTab] = useState('signin'); // signin | signup
+      const [email, setEmail] = useState('');
+      const [password, setPassword] = useState('');
+      const [busy, setBusy] = useState(false);
+      const [msg, setMsg] = useState(null);
+
+      async function handleSubmit(e) {
+        e.preventDefault();
+        if (!email || !password) {
+          setMsg({ type: 'error', text: 'املأ الإيميل والباسوورد.' });
+          return;
+        }
+        if (password.length < 6) {
+          setMsg({ type: 'error', text: 'الباسوورد لازم 6 حروف على الأقل.' });
+          return;
+        }
+        setBusy(true);
+        setMsg(null);
+        try {
+          const result = await onEmailSubmit(authTab, email, password);
+          if (result.error) {
+            setMsg({ type: 'error', text: result.error });
+          } else if (result.needsConfirmation) {
+            setMsg({ type: 'info', text: '✉ ابعتنا لك إيميل تأكيد. افتحه واضغط الرابط.' });
+          }
+        } finally {
+          setBusy(false);
+        }
+      }
+
+      async function handleGoogle() {
+        setBusy(true);
+        setMsg(null);
+        const result = await onGoogle();
+        if (result?.error) {
+          setMsg({ type: 'error', text: result.error });
+        }
+        setBusy(false);
+      }
+
+      return (
+        <div className="login-screen">
+          <div className="login-logo">⚜</div>
+          <div className="login-title">Duelist's Gambit</div>
+          <div className="login-subtitle">مبارزة الشطرنج السحري</div>
+
+          <div className="login-card">
+            <button className="btn-google" onClick={handleGoogle} disabled={busy}>
+              <svg className="google-icon" viewBox="0 0 24 24">
+                <path fill="#4285F4" d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z"/>
+                <path fill="#34A853" d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z"/>
+                <path fill="#FBBC05" d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.07H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.93l2.85-2.22.81-.62z"/>
+                <path fill="#EA4335" d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.07l3.66 2.84c.87-2.6 3.3-4.53 6.16-4.53z"/>
+              </svg>
+              تسجيل دخول بـ Google
+            </button>
+
+            <div className="login-divider">أو</div>
+
+            <div className="auth-tabs">
+              <div className={`auth-tab ${authTab === 'signin' ? 'active' : ''}`} onClick={() => setAuthTab('signin')}>
+                تسجيل دخول
+              </div>
+              <div className={`auth-tab ${authTab === 'signup' ? 'active' : ''}`} onClick={() => setAuthTab('signup')}>
+                حساب جديد
+              </div>
+            </div>
+
+            <form onSubmit={handleSubmit}>
+              <input
+                type="email"
+                placeholder="الإيميل"
+                className="input-mobile"
+                value={email}
+                onChange={(e) => setEmail(e.target.value)}
+                dir="ltr"
+                style={{ textAlign: 'left' }}
+              />
+              <input
+                type="password"
+                placeholder="الباسوورد (6 حروف على الأقل)"
+                className="input-mobile"
+                value={password}
+                onChange={(e) => setPassword(e.target.value)}
+                dir="ltr"
+                style={{ textAlign: 'left' }}
+              />
+              <button type="submit" className="btn-primary-mobile" disabled={busy}>
+                {busy ? '...' : (authTab === 'signin' ? 'دخول' : 'إنشاء حساب')}
+              </button>
+            </form>
+
+            {msg && (
+              <div className={`mt-3 text-sm p-2 rounded ${
+                msg.type === 'error' ? 'bg-red-950/40 text-red-300 border border-red-900/40' : 'bg-yellow-950/40 text-yellow-300 border border-yellow-900/40'
+              }`}>
+                {msg.text}
+              </div>
+            )}
+
+            <div className="mt-4 text-xs text-center text-gray-500 font-body">
+              لو Google مش شغّال، استخدم الإيميل.
+            </div>
+          </div>
+
+          <div className="mt-6 text-xs text-gray-600 font-body">⚜ Duelist's Gambit ⚜</div>
+        </div>
+      );
+    }
+
+    // ════════════════════════════════════════════════════════════
+    // App — Shell بيلوّد البيانات + يطلب تسجيل دخول إجباري
     // ════════════════════════════════════════════════════════════
     function App() {
-      const [loadState, setLoadState] = useState('loading'); // loading | ready | offline
-      const [loadMsg, setLoadMsg] = useState('جاري تحميل بيانات اللعبة من السيرفر...');
+      const [bootState, setBootState] = useState('loading'); // loading | login | ready
       const [user, setUser] = useState(null);
       const [profile, setProfile] = useState(null);
-      const [authReady, setAuthReady] = useState(false);
 
-      // تحميل البيانات + التحقق من الجلسة
+      // تحميل أولي
       useEffect(() => {
         let alive = true;
         (async () => {
-          // 1) جلب الجلسة الحالية (لو فيه)
+          // 1) بيانات الكروت
+          await loadFromSupabase();
+          if (!alive) return;
+
+          // 2) فحص الجلسة
           try {
             const { data: { session } } = await sb.auth.getSession();
             if (alive && session?.user) {
               setUser(session.user);
-              // اجلب البروفايل
               const { data: p } = await sb.from('profiles').select('*').eq('id', session.user.id).maybeSingle();
               if (alive && p) setProfile(p);
+              if (alive) setBootState('ready');
+            } else if (alive) {
+              setBootState('login');
             }
           } catch (e) {
             console.warn('Auth check failed:', e);
-          }
-          if (alive) setAuthReady(true);
-
-          // 2) حمّل بيانات الكروت
-          const res = await loadFromSupabase();
-          if (!alive) return;
-          if (res.ok) {
-            setLoadState('ready');
-          } else {
-            setLoadMsg('تعذّر الاتصال بالسيرفر، سيتم استعمال البيانات الافتراضية.');
-            setLoadState('offline');
-            setTimeout(() => alive && setLoadState('ready'), 1500);
+            if (alive) setBootState('login');
           }
         })();
 
-        // 3) استمع لتغيرات الـ auth (تسجيل دخول/خروج)
+        // استمع للتغيرات
         const { data: { subscription } } = sb.auth.onAuthStateChange(async (event, session) => {
           if (!alive) return;
           if (session?.user) {
             setUser(session.user);
             const { data: p } = await sb.from('profiles').select('*').eq('id', session.user.id).maybeSingle();
-            if (alive) setProfile(p);
+            if (alive) {
+              setProfile(p);
+              setBootState('ready');
+            }
           } else {
             setUser(null);
             setProfile(null);
+            setBootState('login');
           }
         });
 
-        return () => {
-          alive = false;
-          subscription?.unsubscribe();
-        };
+        return () => { alive = false; subscription?.unsubscribe(); };
       }, []);
 
-      async function handleSignIn() {
+      // إعادة تحميل البروفايل (مثلاً بعد لعبة عشان نشوف العملات الجديدة)
+      async function refreshProfile() {
+        if (!user) return;
+        const { data: p } = await sb.from('profiles').select('*').eq('id', user.id).maybeSingle();
+        if (p) setProfile(p);
+      }
+
+      async function handleGoogle() {
         try {
           const { error } = await sb.auth.signInWithOAuth({
             provider: 'google',
             options: { redirectTo: window.location.origin + window.location.pathname }
           });
           if (error) {
-            if (error.message?.includes('provider is not enabled') || error.message?.includes('Unsupported provider')) {
-              alert('Google OAuth غير مفعّل في Supabase.\n\nاتبع الخطوات في README.md قسم "المرحلة 1":\n1) فعّل Google Provider في Supabase Dashboard\n2) ضيف Client ID و Secret من Google Cloud Console');
-            } else {
-              alert('فشل تسجيل الدخول: ' + error.message);
+            if (error.message?.includes('not enabled') || error.message?.includes('Unsupported provider')) {
+              return { error: 'Google OAuth مش مفعّل في Supabase. استخدم الإيميل أو فعّل Google من Dashboard.' };
             }
+            return { error: error.message };
+          }
+          return {};
+        } catch (e) {
+          return { error: e.message };
+        }
+      }
+
+      async function handleEmailSubmit(mode, email, password) {
+        try {
+          if (mode === 'signin') {
+            const { error } = await sb.auth.signInWithPassword({ email, password });
+            if (error) {
+              if (error.message?.includes('Invalid login')) {
+                return { error: 'إيميل أو باسوورد غلط.' };
+              }
+              if (error.message?.includes('Email not confirmed')) {
+                return { error: 'لازم تأكد إيميلك أولاً (افتح الإيميل اللي بعتناه لك).' };
+              }
+              return { error: error.message };
+            }
+            return {};
+          } else {
+            const { data, error } = await sb.auth.signUp({
+              email, password,
+              options: {
+                emailRedirectTo: window.location.origin + window.location.pathname,
+                data: { full_name: email.split('@')[0] }
+              }
+            });
+            if (error) {
+              if (error.message?.includes('already registered')) {
+                return { error: 'الإيميل ده مسجّل قبل كده. جرّب "تسجيل دخول".' };
+              }
+              return { error: error.message };
+            }
+            // لو فيه session فوراً، تم إنشاء الحساب وتسجيل الدخول تلقائياً
+            if (data?.session) return {};
+            return { needsConfirmation: true };
           }
         } catch (e) {
-          alert('خطأ غير متوقع في تسجيل الدخول. راجع console للتفاصيل.');
-          console.error(e);
+          return { error: e.message };
         }
       }
 
@@ -1841,23 +2353,36 @@
         await sb.auth.signOut();
       }
 
-      if (loadState !== 'ready' || !authReady) {
+      // شاشة التحميل
+      if (bootState === 'loading') {
         return (
-          <div className="min-h-screen flex items-center justify-center">
-            <div className="text-center">
-              <div className="font-display text-3xl text-yellow-400 mb-4">⚜</div>
-              <div className="font-display text-xl text-yellow-300 mb-2">Duelist's Gambit</div>
-              <div className="font-body text-base text-gray-400">{loadMsg}</div>
-              <div className="mt-4 inline-block animate-spin" style={{ animationDuration: '2s' }}>⚜</div>
-            </div>
+          <div className="login-screen">
+            <div className="login-logo">⚜</div>
+            <div className="login-title">Duelist's Gambit</div>
+            <div className="mt-4 text-gray-400 font-body">جاري التحميل...</div>
           </div>
         );
       }
 
-      return <Game user={user} profile={profile} onSignIn={handleSignIn} onSignOut={handleSignOut} />;
+      // شاشة تسجيل الدخول
+      if (bootState === 'login' || !user) {
+        return <LoginScreen onGoogle={handleGoogle} onEmailSubmit={handleEmailSubmit} />;
+      }
+
+      // اللعبة (محتاج user و profile)
+      return (
+        <div className="app-container">
+          <Game
+            user={user}
+            profile={profile}
+            onSignOut={handleSignOut}
+            onRefreshProfile={refreshProfile}
+          />
+        </div>
+      );
     }
 
-    function Game({ user, profile, onSignIn, onSignOut }) {
+    function Game({ user, profile, onSignOut, onRefreshProfile }) {
       const [state, dispatch] = useReducer(gameReducer, undefined, makeInitialState);
       const [mode, setMode] = useState('menu'); // 'menu' | '1p' | '2p'
       const [showRules, setShowRules] = useState(false);
@@ -1923,88 +2448,171 @@
       const king1 = findKing(1);
       const king2 = findKing(2);
 
-      // شاشة البداية
-      if (mode === 'menu') {
-        return (
-          <div className="min-h-screen flex items-center justify-center p-4">
-            <div className="modal text-center max-w-lg">
-              <div className="text-6xl mb-4">⚜</div>
-              <h1 className="font-display text-4xl text-yellow-400 mb-2">Duelist's Gambit</h1>
-              <p className="font-body text-lg text-gray-400 mb-4">مبارزة الشطرنج السحري</p>
+      // ── State للقائمة المنسدلة ──
+      const [showProfileMenu, setShowProfileMenu] = useState(false);
 
-              {/* صندوق المستخدم */}
-              {user ? (
-                <div className="flex items-center justify-center gap-3 mb-4 px-4 py-2 rounded bg-yellow-950/30 border border-yellow-900/40">
-                  {profile?.avatar_url && (
-                    <img src={profile.avatar_url} alt="" className="w-9 h-9 rounded-full border border-yellow-700" />
-                  )}
-                  <div className="text-right">
-                    <div className="font-display text-sm text-yellow-300">{profile?.display_name || user.email}</div>
-                    <div className="font-mono text-xs text-gray-400">
-                      🏆 {profile?.rating ?? 1000} • {profile?.games_won ?? 0}/{profile?.games_played ?? 0}
+      // شاشة البداية / الهوم (Android-style)
+      if (mode === 'menu') {
+        const coins = profile?.coins ?? 0;
+        const challengeCost = 200;
+        const canAffordOnline = coins >= challengeCost;
+
+        return (
+          <div className="min-h-screen pb-6" onClick={() => showProfileMenu && setShowProfileMenu(false)}>
+            {/* App Header */}
+            <div className="app-header" style={{ position: 'relative' }}>
+              <div className="flex items-center gap-2" onClick={(e) => { e.stopPropagation(); setShowProfileMenu(!showProfileMenu); }}>
+                {profile?.avatar_url ? (
+                  <img src={profile.avatar_url} alt="" className="avatar-sm" />
+                ) : (
+                  <div className="avatar-sm flex items-center justify-center bg-yellow-900/30 text-yellow-400 font-display">
+                    {(profile?.display_name || user?.email || '?')[0].toUpperCase()}
+                  </div>
+                )}
+              </div>
+
+              <div className="font-display text-yellow-400 text-base tracking-widest">⚜ DUELIST'S ⚜</div>
+
+              <div className="coin-badge">
+                <span className="coin-icon">¢</span>
+                <span>{coins.toLocaleString('en-US')}</span>
+              </div>
+
+              {/* Profile dropdown */}
+              {showProfileMenu && (
+                <div className="profile-menu" onClick={(e) => e.stopPropagation()}>
+                  <div className="profile-menu-header">
+                    <div className="flex items-center gap-2">
+                      {profile?.avatar_url && <img src={profile.avatar_url} alt="" className="w-10 h-10 rounded-full border border-yellow-700" />}
+                      <div>
+                        <div className="font-display text-sm text-yellow-300">{profile?.display_name || 'لاعب'}</div>
+                        <div className="text-xs text-gray-500 truncate" style={{ maxWidth: '160px' }}>{user.email}</div>
+                      </div>
                     </div>
                   </div>
-                  <button className="text-xs text-gray-500 hover:text-red-400 mr-2" onClick={onSignOut}>تسجيل خروج</button>
-                </div>
-              ) : (
-                <div className="mb-4 p-3 rounded bg-yellow-950/20 border border-yellow-900/30">
-                  <p className="text-sm text-gray-400 mb-2">سجّل دخول بـ Gmail للعب أونلاين وحفظ تقدمك:</p>
-                  <button
-                    className="btn"
-                    style={{ background: 'linear-gradient(135deg, rgba(232,200,118,0.2), rgba(232,200,118,0.05))' }}
-                    onClick={onSignIn}
-                  >
-                    🔑 تسجيل دخول بـ Google
-                  </button>
-                </div>
-              )}
-
-              <div className="ornament-line mb-6"><span>⚔</span></div>
-              <p className="font-body text-base text-gray-300 mb-6">
-                حرب استراتيجية على رقعة 8×8. استدعَ الوحوش، انصب الفخاخ، وأسقط ملك الخصم.
-              </p>
-              <div className="flex flex-col sm:flex-row gap-3 justify-center mb-3">
-                <button className="btn text-lg px-6 py-3" onClick={() => setMode('1p')}>
-                  🎮 لاعب واحد
-                  <div className="font-body text-xs text-gray-400 mt-1">ضد الكمبيوتر</div>
-                </button>
-                <button className="btn text-lg px-6 py-3" onClick={() => setMode('2p')}>
-                  👥 لاعبان
-                  <div className="font-body text-xs text-gray-400 mt-1">مشاركة الجهاز</div>
-                </button>
-              </div>
-              <div className="flex justify-center">
-                <button
-                  className="btn text-base px-6 py-3"
-                  style={{ opacity: 0.5, cursor: 'not-allowed' }}
-                  disabled
-                  title="قريباً — Online Multiplayer"
-                >
-                  🌐 أونلاين <span className="text-xs text-gray-500">(قريباً)</span>
-                  <div className="font-body text-xs text-gray-500 mt-1">تحدّى لاعبين حقيقيين</div>
-                </button>
-              </div>
-              <button className="mt-6 text-gray-500 underline text-sm" onClick={() => setShowRules(true)}>
-                📜 قواعد اللعبة
-              </button>
-              {showRules && (
-                <div className="modal-backdrop" onClick={() => setShowRules(false)}>
-                  <div className="modal" onClick={e => e.stopPropagation()}>
-                    <h2 className="font-display text-2xl text-yellow-400 mb-4">⚜ قواعد اللعبة ⚜</h2>
-                    <div className="font-body text-base space-y-3 text-gray-200 text-right">
-                      <p><b className="text-yellow-300">الهدف:</b> اقتل ملك الخصم (HP = 0).</p>
-                      <p><b className="text-yellow-300">المانا:</b> تبدأ بـ 1 وتزيد 1 كل دور حتى 10.</p>
-                      <p><b className="text-yellow-300">الاستدعاء:</b> الوحوش توضع في الصف الخلفي فقط.</p>
-                      <p><b className="text-yellow-300">الحركة:</b> اضغط وحشك ثم خانة مضاءة.</p>
-                      <p><b className="text-yellow-300">القتال:</b> طرفا الصدام يأخذان ضرراً بقوة الآخر.</p>
-                      <p><b className="text-yellow-300">السحر:</b> يُلعب مرة واحدة بأثر فوري.</p>
-                      <p><b className="text-yellow-300">الفخاخ:</b> توضع مقلوبة في نصفك وتنطلق عند دخول العدو.</p>
-                    </div>
-                    <button className="btn mt-6" onClick={() => setShowRules(false)}>إغلاق</button>
+                  <div className="profile-menu-item">
+                    <span>🏆</span>
+                    <span>التقييم: <b className="text-yellow-300">{profile?.rating ?? 1000}</b></span>
+                  </div>
+                  <div className="profile-menu-item">
+                    <span>⚔</span>
+                    <span>المباريات: <b className="text-yellow-300">{profile?.games_won ?? 0}</b> / {profile?.games_played ?? 0}</span>
+                  </div>
+                  {profile?.is_admin && (
+                    <a href="admin.html" className="profile-menu-item" style={{ textDecoration: 'none' }}>
+                      <span>⚙</span><span>لوحة التحكم</span>
+                    </a>
+                  )}
+                  <div className="profile-menu-item" onClick={() => setShowRules(true)}>
+                    <span>📜</span><span>قواعد اللعبة</span>
+                  </div>
+                  <div className="profile-menu-item danger" onClick={onSignOut}>
+                    <span>⎋</span><span>تسجيل خروج</span>
                   </div>
                 </div>
               )}
             </div>
+
+            {/* محتوى الهوم */}
+            <div className="px-4 pt-4">
+              {/* ترحيب */}
+              <div className="text-center mb-4">
+                <div className="font-display text-2xl text-yellow-300 mb-1">
+                  أهلاً، {(profile?.display_name || 'بطل').split(' ')[0]}
+                </div>
+                <div className="font-body text-sm text-gray-500">جاهز للمبارزة؟</div>
+              </div>
+
+              {/* إحصائيات */}
+              <div className="stats-grid">
+                <div className="stat-tile">
+                  <div className="stat-value">{profile?.rating ?? 1000}</div>
+                  <div className="stat-label">التقييم</div>
+                </div>
+                <div className="stat-tile">
+                  <div className="stat-value">{profile?.games_won ?? 0}</div>
+                  <div className="stat-label">انتصارات</div>
+                </div>
+                <div className="stat-tile">
+                  <div className="stat-value">{profile?.games_played ?? 0}</div>
+                  <div className="stat-label">مباريات</div>
+                </div>
+              </div>
+
+              {/* أوضاع اللعب */}
+              <div className="section-heading">⚜ ابدأ مبارزة</div>
+
+              {/* أونلاين (مميز) */}
+              <div
+                className={`play-card featured ${!canAffordOnline ? 'disabled' : ''}`}
+                onClick={() => {
+                  if (!canAffordOnline) return;
+                  alert('🌐 وضع الأونلاين قيد التطوير.\n\nقريباً: تحدّى لاعبين حقيقيين على مستوى العالم!');
+                }}
+                title={!canAffordOnline ? 'محتاج 200 عملة على الأقل' : ''}
+              >
+                <div className="play-card-icon">🌐</div>
+                <div className="flex-1">
+                  <div className="play-card-title">تحدّي أونلاين</div>
+                  <div className="play-card-desc">العب ضد لاعب حقيقي (قريباً)</div>
+                </div>
+                <div className="play-card-cost">
+                  <span className="coin-icon" style={{ width: '16px', height: '16px', fontSize: '0.55rem' }}>¢</span>
+                  <span>200</span>
+                </div>
+              </div>
+
+              {/* لاعب واحد */}
+              <div className="play-card" onClick={() => setMode('1p')}>
+                <div className="play-card-icon">🤖</div>
+                <div className="flex-1">
+                  <div className="play-card-title">تدريب — لاعب واحد</div>
+                  <div className="play-card-desc">العب ضد الكمبيوتر</div>
+                </div>
+                <div className="play-card-cost" style={{ borderColor: 'rgba(94,200,143,0.4)', color: '#5ec88f' }}>مجاناً</div>
+              </div>
+
+              {/* لاعبان */}
+              <div className="play-card" onClick={() => setMode('2p')}>
+                <div className="play-card-icon">👥</div>
+                <div className="flex-1">
+                  <div className="play-card-title">صديق — لاعبان</div>
+                  <div className="play-card-desc">شاركوا نفس الجهاز</div>
+                </div>
+                <div className="play-card-cost" style={{ borderColor: 'rgba(94,200,143,0.4)', color: '#5ec88f' }}>مجاناً</div>
+              </div>
+
+              {!canAffordOnline && (
+                <div className="mt-4 p-3 rounded bg-red-950/20 border border-red-900/40 text-center">
+                  <div className="text-sm text-red-300 font-body">رصيدك أقل من 200 عملة. اربح مباريات لتجمع عملات.</div>
+                </div>
+              )}
+
+              {/* تذييل صغير */}
+              <div className="text-center mt-8 text-xs text-gray-600 font-display">
+                ⚜ DUELIST'S GAMBIT ⚜<br/>
+                <span className="text-gray-700">v1.0 — نموذج أولي</span>
+              </div>
+            </div>
+
+            {/* مودال القواعد */}
+            {showRules && (
+              <div className="modal-backdrop" onClick={() => setShowRules(false)}>
+                <div className="modal" onClick={e => e.stopPropagation()}>
+                  <h2 className="font-display text-2xl text-yellow-400 mb-4">⚜ قواعد اللعبة ⚜</h2>
+                  <div className="font-body text-base space-y-3 text-gray-200 text-right">
+                    <p><b className="text-yellow-300">الهدف:</b> اقتل ملك الخصم (HP = 0).</p>
+                    <p><b className="text-yellow-300">المانا:</b> تبدأ بـ 1 وتزيد 1 كل دور حتى 10.</p>
+                    <p><b className="text-yellow-300">الاستدعاء:</b> الوحوش توضع في الصف الخلفي فقط.</p>
+                    <p><b className="text-yellow-300">الحركة:</b> اضغط وحشك ثم خانة مضاءة.</p>
+                    <p><b className="text-yellow-300">القتال:</b> طرفا الصدام يأخذان ضرراً بقوة الآخر.</p>
+                    <p><b className="text-yellow-300">السحر:</b> يُلعب مرة واحدة بأثر فوري.</p>
+                    <p><b className="text-yellow-300">الفخاخ:</b> توضع مقلوبة في نصفك وتنطلق عند دخول العدو.</p>
+                  </div>
+                  <button className="btn mt-6" onClick={() => setShowRules(false)}>إغلاق</button>
+                </div>
+              </div>
+            )}
           </div>
         );
       }
@@ -2087,36 +2695,21 @@
               <h1 className="font-display text-2xl text-yellow-400 tracking-wider">
                 ⚜ Duelist's Gambit ⚜
               </h1>
-              <div className="flex items-center gap-3">
-                <span className="font-display text-sm text-gray-400">الدور {state.turn}</span>
-                {user ? (
-                  <div className="flex items-center gap-2 px-2 py-1 rounded border border-yellow-900/40 bg-black/30">
-                    {profile?.avatar_url && (
-                      <img src={profile.avatar_url} alt="" className="w-6 h-6 rounded-full" />
-                    )}
-                    <span className="font-body text-sm text-yellow-300">{profile?.display_name || user.email}</span>
-                    <button className="text-xs text-gray-500 hover:text-red-400" onClick={onSignOut} title="تسجيل خروج">
-                      ⎋
-                    </button>
-                  </div>
-                ) : (
-                  <button className="btn" style={{ padding: '0.4rem 0.9rem', fontSize: '0.75rem' }} onClick={onSignIn}>
-                    🔑 دخول بـ Google
-                  </button>
-                )}
-                {profile?.is_admin && (
-                  <a href="admin.html" className="btn" style={{ padding: '0.4rem 0.9rem', fontSize: '0.75rem', textDecoration: 'none' }}>
-                    ⚙ لوحة التحكم
-                  </a>
-                )}
-                <button className="btn" style={{ padding: '0.4rem 0.9rem', fontSize: '0.75rem' }} onClick={() => setShowRules(true)}>
-                  📜 القواعد
+              <div className="flex items-center gap-2">
+                <span className="font-display text-xs text-gray-400">دور {state.turn}</span>
+                <div className="coin-badge" style={{ padding: '0.25rem 0.6rem', fontSize: '0.75rem' }}>
+                  <span className="coin-icon" style={{ width: '16px', height: '16px', fontSize: '0.55rem' }}>¢</span>
+                  <span>{(profile?.coins ?? 0).toLocaleString('en-US')}</span>
+                </div>
+                <button className="btn" style={{ padding: '0.3rem 0.7rem', fontSize: '0.7rem' }} onClick={() => setShowRules(true)}>
+                  📜
                 </button>
-                <button className="btn" style={{ padding: '0.4rem 0.9rem', fontSize: '0.75rem' }} onClick={() => {
+                <button className="btn" style={{ padding: '0.3rem 0.7rem', fontSize: '0.7rem' }} onClick={() => {
                   dispatch({ type: 'NEW_GAME' }); setMode('menu');
                 }}>
-                  ☰ قائمة
+                  ☰
                 </button>
+              </div>
                 <button className="btn btn-crimson" style={{ padding: '0.4rem 0.9rem', fontSize: '0.75rem' }} onClick={() => {
                   if (confirm('هل أنت متأكد من إنهاء المبارزة وبدء جديدة؟')) dispatch({ type: 'NEW_GAME' });
                 }}>
