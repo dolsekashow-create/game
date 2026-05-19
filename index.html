@@ -1553,6 +1553,15 @@
           return s;
         }
 
+        case 'CANCEL_PLAY':
+          s.pendingPlay = null;
+          s.selected = null;
+          return s;
+
+        case 'END_TURN':
+          endTurn(s);
+          return s;
+
       }
       return s;
     }
@@ -1756,10 +1765,29 @@
     function App() {
       const [loadState, setLoadState] = useState('loading'); // loading | ready | offline
       const [loadMsg, setLoadMsg] = useState('جاري تحميل بيانات اللعبة من السيرفر...');
+      const [user, setUser] = useState(null);
+      const [profile, setProfile] = useState(null);
+      const [authReady, setAuthReady] = useState(false);
 
+      // تحميل البيانات + التحقق من الجلسة
       useEffect(() => {
         let alive = true;
         (async () => {
+          // 1) جلب الجلسة الحالية (لو فيه)
+          try {
+            const { data: { session } } = await sb.auth.getSession();
+            if (alive && session?.user) {
+              setUser(session.user);
+              // اجلب البروفايل
+              const { data: p } = await sb.from('profiles').select('*').eq('id', session.user.id).maybeSingle();
+              if (alive && p) setProfile(p);
+            }
+          } catch (e) {
+            console.warn('Auth check failed:', e);
+          }
+          if (alive) setAuthReady(true);
+
+          // 2) حمّل بيانات الكروت
           const res = await loadFromSupabase();
           if (!alive) return;
           if (res.ok) {
@@ -1770,10 +1798,39 @@
             setTimeout(() => alive && setLoadState('ready'), 1500);
           }
         })();
-        return () => { alive = false; };
+
+        // 3) استمع لتغيرات الـ auth (تسجيل دخول/خروج)
+        const { data: { subscription } } = sb.auth.onAuthStateChange(async (event, session) => {
+          if (!alive) return;
+          if (session?.user) {
+            setUser(session.user);
+            const { data: p } = await sb.from('profiles').select('*').eq('id', session.user.id).maybeSingle();
+            if (alive) setProfile(p);
+          } else {
+            setUser(null);
+            setProfile(null);
+          }
+        });
+
+        return () => {
+          alive = false;
+          subscription?.unsubscribe();
+        };
       }, []);
 
-      if (loadState !== 'ready') {
+      async function handleSignIn() {
+        const { error } = await sb.auth.signInWithOAuth({
+          provider: 'google',
+          options: { redirectTo: window.location.origin + window.location.pathname }
+        });
+        if (error) alert('فشل تسجيل الدخول: ' + error.message);
+      }
+
+      async function handleSignOut() {
+        await sb.auth.signOut();
+      }
+
+      if (loadState !== 'ready' || !authReady) {
         return (
           <div className="min-h-screen flex items-center justify-center">
             <div className="text-center">
@@ -1786,10 +1843,10 @@
         );
       }
 
-      return <Game />;
+      return <Game user={user} profile={profile} onSignIn={handleSignIn} onSignOut={handleSignOut} />;
     }
 
-    function Game() {
+    function Game({ user, profile, onSignIn, onSignOut }) {
       const [state, dispatch] = useReducer(gameReducer, undefined, makeInitialState);
       const [mode, setMode] = useState('menu'); // 'menu' | '1p' | '2p'
       const [showRules, setShowRules] = useState(false);
@@ -1862,22 +1919,61 @@
             <div className="modal text-center max-w-lg">
               <div className="text-6xl mb-4">⚜</div>
               <h1 className="font-display text-4xl text-yellow-400 mb-2">Duelist's Gambit</h1>
-              <p className="font-body text-lg text-gray-400 mb-6">مبارزة الشطرنج السحري</p>
+              <p className="font-body text-lg text-gray-400 mb-4">مبارزة الشطرنج السحري</p>
+
+              {/* صندوق المستخدم */}
+              {user ? (
+                <div className="flex items-center justify-center gap-3 mb-4 px-4 py-2 rounded bg-yellow-950/30 border border-yellow-900/40">
+                  {profile?.avatar_url && (
+                    <img src={profile.avatar_url} alt="" className="w-9 h-9 rounded-full border border-yellow-700" />
+                  )}
+                  <div className="text-right">
+                    <div className="font-display text-sm text-yellow-300">{profile?.display_name || user.email}</div>
+                    <div className="font-mono text-xs text-gray-400">
+                      🏆 {profile?.rating ?? 1000} • {profile?.games_won ?? 0}/{profile?.games_played ?? 0}
+                    </div>
+                  </div>
+                  <button className="text-xs text-gray-500 hover:text-red-400 mr-2" onClick={onSignOut}>تسجيل خروج</button>
+                </div>
+              ) : (
+                <div className="mb-4 p-3 rounded bg-yellow-950/20 border border-yellow-900/30">
+                  <p className="text-sm text-gray-400 mb-2">سجّل دخول بـ Gmail للعب أونلاين وحفظ تقدمك:</p>
+                  <button
+                    className="btn"
+                    style={{ background: 'linear-gradient(135deg, rgba(232,200,118,0.2), rgba(232,200,118,0.05))' }}
+                    onClick={onSignIn}
+                  >
+                    🔑 تسجيل دخول بـ Google
+                  </button>
+                </div>
+              )}
+
               <div className="ornament-line mb-6"><span>⚔</span></div>
-              <p className="font-body text-base text-gray-300 mb-8">
+              <p className="font-body text-base text-gray-300 mb-6">
                 حرب استراتيجية على رقعة 8×8. استدعَ الوحوش، انصب الفخاخ، وأسقط ملك الخصم.
               </p>
-              <div className="flex flex-col sm:flex-row gap-4 justify-center">
-                <button className="btn text-lg px-8 py-4" onClick={() => setMode('1p')}>
+              <div className="flex flex-col sm:flex-row gap-3 justify-center mb-3">
+                <button className="btn text-lg px-6 py-3" onClick={() => setMode('1p')}>
                   🎮 لاعب واحد
                   <div className="font-body text-xs text-gray-400 mt-1">ضد الكمبيوتر</div>
                 </button>
-                <button className="btn text-lg px-8 py-4" onClick={() => setMode('2p')}>
+                <button className="btn text-lg px-6 py-3" onClick={() => setMode('2p')}>
                   👥 لاعبان
                   <div className="font-body text-xs text-gray-400 mt-1">مشاركة الجهاز</div>
                 </button>
               </div>
-              <button className="mt-8 text-gray-500 underline text-sm" onClick={() => setShowRules(true)}>
+              <div className="flex justify-center">
+                <button
+                  className="btn text-base px-6 py-3"
+                  style={{ opacity: 0.5, cursor: 'not-allowed' }}
+                  disabled
+                  title="قريباً — Online Multiplayer"
+                >
+                  🌐 أونلاين <span className="text-xs text-gray-500">(قريباً)</span>
+                  <div className="font-body text-xs text-gray-500 mt-1">تحدّى لاعبين حقيقيين</div>
+                </button>
+              </div>
+              <button className="mt-6 text-gray-500 underline text-sm" onClick={() => setShowRules(true)}>
                 📜 قواعد اللعبة
               </button>
               {showRules && (
@@ -1982,9 +2078,26 @@
               </h1>
               <div className="flex items-center gap-3">
                 <span className="font-display text-sm text-gray-400">الدور {state.turn}</span>
-                <a href="admin.html" className="btn" style={{ padding: '0.4rem 0.9rem', fontSize: '0.75rem', textDecoration: 'none' }}>
-                  ⚙ لوحة التحكم
-                </a>
+                {user ? (
+                  <div className="flex items-center gap-2 px-2 py-1 rounded border border-yellow-900/40 bg-black/30">
+                    {profile?.avatar_url && (
+                      <img src={profile.avatar_url} alt="" className="w-6 h-6 rounded-full" />
+                    )}
+                    <span className="font-body text-sm text-yellow-300">{profile?.display_name || user.email}</span>
+                    <button className="text-xs text-gray-500 hover:text-red-400" onClick={onSignOut} title="تسجيل خروج">
+                      ⎋
+                    </button>
+                  </div>
+                ) : (
+                  <button className="btn" style={{ padding: '0.4rem 0.9rem', fontSize: '0.75rem' }} onClick={onSignIn}>
+                    🔑 دخول بـ Google
+                  </button>
+                )}
+                {profile?.is_admin && (
+                  <a href="admin.html" className="btn" style={{ padding: '0.4rem 0.9rem', fontSize: '0.75rem', textDecoration: 'none' }}>
+                    ⚙ لوحة التحكم
+                  </a>
+                )}
                 <button className="btn" style={{ padding: '0.4rem 0.9rem', fontSize: '0.75rem' }} onClick={() => setShowRules(true)}>
                   📜 القواعد
                 </button>
