@@ -875,7 +875,123 @@
     // ════════════════════════════════════════════════════════════
     // التطبيق الرئيسي
     // ════════════════════════════════════════════════════════════
-    function App() {
+    function AppWithAuthGate() {
+      const [authState, setAuthState] = useState('checking'); // checking | not_logged_in | not_admin | admin
+      const [user, setUser] = useState(null);
+      const [profile, setProfile] = useState(null);
+
+      useEffect(() => {
+        let alive = true;
+
+        async function checkAuth() {
+          try {
+            const { data: { session } } = await sb.auth.getSession();
+            if (!alive) return;
+            if (!session?.user) {
+              setAuthState('not_logged_in');
+              return;
+            }
+            setUser(session.user);
+            const { data: p } = await sb.from('profiles').select('*').eq('id', session.user.id).maybeSingle();
+            if (!alive) return;
+            setProfile(p);
+            if (p?.is_admin) {
+              setAuthState('admin');
+            } else {
+              setAuthState('not_admin');
+            }
+          } catch (e) {
+            console.error('Auth check failed:', e);
+            setAuthState('not_logged_in');
+          }
+        }
+
+        checkAuth();
+
+        const { data: { subscription } } = sb.auth.onAuthStateChange((event, session) => {
+          if (!alive) return;
+          if (event === 'SIGNED_OUT') {
+            setUser(null);
+            setProfile(null);
+            setAuthState('not_logged_in');
+          } else if (event === 'SIGNED_IN' || event === 'TOKEN_REFRESHED') {
+            checkAuth();
+          }
+        });
+
+        return () => { alive = false; subscription?.unsubscribe(); };
+      }, []);
+
+      async function handleSignIn() {
+        const { error } = await sb.auth.signInWithOAuth({
+          provider: 'google',
+          options: { redirectTo: window.location.origin + window.location.pathname }
+        });
+        if (error) alert('فشل تسجيل الدخول: ' + error.message);
+      }
+
+      async function handleSignOut() {
+        await sb.auth.signOut();
+        window.location.href = 'index.html';
+      }
+
+      if (authState === 'checking') {
+        return (
+          <div className="min-h-screen flex items-center justify-center">
+            <div className="text-center">
+              <div className="font-display text-3xl text-yellow-400 mb-4">⚜</div>
+              <div className="font-display text-xl text-yellow-300">جاري التحقق من الجلسة...</div>
+            </div>
+          </div>
+        );
+      }
+
+      if (authState === 'not_logged_in') {
+        return (
+          <div className="min-h-screen flex items-center justify-center p-4">
+            <div className="modal text-center">
+              <div className="text-5xl mb-4">🔒</div>
+              <h1 className="font-display text-2xl text-yellow-400 mb-3">دخول الأدمن مطلوب</h1>
+              <p className="font-body text-gray-300 mb-6">
+                لوحة التحكم محمية. سجّل دخول بحساب Google المعتمد كأدمن.
+              </p>
+              <button className="btn mb-3" onClick={handleSignIn}>🔑 دخول بـ Google</button>
+              <div><a href="index.html" className="text-sm text-gray-500 underline">العودة للعبة</a></div>
+            </div>
+          </div>
+        );
+      }
+
+      if (authState === 'not_admin') {
+        return (
+          <div className="min-h-screen flex items-center justify-center p-4">
+            <div className="modal text-center">
+              <div className="text-5xl mb-4">⛔</div>
+              <h1 className="font-display text-2xl text-red-400 mb-3">غير مصرح</h1>
+              <p className="font-body text-gray-300 mb-2">
+                حسابك ({profile?.email || user?.email}) ليس لديه صلاحية أدمن.
+              </p>
+              <p className="font-body text-sm text-gray-500 mb-6">
+                لو إنت صاحب المشروع، شغّل هذا الأمر في Supabase SQL Editor:
+                <code className="block mt-2 p-2 bg-black/40 rounded text-xs text-yellow-300 text-left direction-ltr" style={{ direction: 'ltr' }}>
+                  update public.profiles<br/>
+                  set is_admin = true<br/>
+                  where email = '{profile?.email || user?.email}';
+                </code>
+              </p>
+              <div className="flex gap-3 justify-center">
+                <button className="btn btn-crimson" onClick={handleSignOut}>تسجيل خروج</button>
+                <a href="index.html" className="btn">العودة للعبة</a>
+              </div>
+            </div>
+          </div>
+        );
+      }
+
+      return <AdminApp user={user} profile={profile} onSignOut={handleSignOut} />;
+    }
+
+    function AdminApp({ user, profile, onSignOut }) {
       const [loadState, setLoadState] = useState('loading'); // loading|ready|error
       const [errorMsg, setErrorMsg] = useState('');
       const [cards, setCards] = useState([]);
@@ -1059,6 +1175,14 @@
                 <span className="font-display text-xs text-gray-500">Duelist's Gambit</span>
               </div>
               <div className="flex items-center gap-2">
+                {profile?.avatar_url && (
+                  <div className="flex items-center gap-2 px-2 py-1 rounded border border-yellow-900/40 bg-black/30">
+                    <img src={profile.avatar_url} alt="" className="w-6 h-6 rounded-full" />
+                    <span className="font-body text-sm text-yellow-300">{profile.display_name}</span>
+                    <span className="text-xs px-1.5 py-0.5 rounded bg-yellow-600/30 text-yellow-200">أدمن</span>
+                  </div>
+                )}
+                <button className="btn btn-crimson" onClick={onSignOut} style={{ padding: '0.5rem 0.9rem', fontSize: '0.75rem' }}>تسجيل خروج</button>
                 <a href="index.html" className="btn">🎮 العودة للعبة</a>
               </div>
             </div>
@@ -1122,7 +1246,7 @@
       );
     }
 
-    ReactDOM.createRoot(document.getElementById('root')).render(<App />);
+    ReactDOM.createRoot(document.getElementById('root')).render(<AppWithAuthGate />);
   </script>
 </body>
 </html>
