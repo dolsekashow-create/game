@@ -2279,61 +2279,118 @@
     }
 
     // ════════════════════════════════════════════════════════════
-    // MatchmakingModal — البحث عن لاعب
+    // MatchmakingModal — البحث عن لاعب (Supabase Realtime)
     // ════════════════════════════════════════════════════════════
     function MatchmakingModal({ matchmaking, matchTimer, setMatchTimer, setMatchmaking, setMode, botName, user }) {
       const timerRef = React.useRef(null);
+      const channelRef = React.useRef(null);
+      const myEntryId = React.useRef(null);
+      const resolvedRef = React.useRef(false);
 
       React.useEffect(() => {
         if (matchmaking !== 'searching') return;
+        resolvedRef.current = false;
 
-        // ابدأ العد التنازلي
+        // 1) أضف نفسك للـ queue
+        async function joinQueue() {
+          // امسح أي entry قديم للمستخدم
+          await sb.from('matchmaking_queue').delete().eq('user_id', user.id);
+
+          const { data, error } = await sb.from('matchmaking_queue').insert({
+            user_id: user.id,
+            display_name: user.user_metadata?.full_name || user.email?.split('@')[0] || 'لاعب',
+            status: 'waiting'
+          }).select().single();
+
+          if (error || !data) { fallbackToBot(); return; }
+          myEntryId.current = data.id;
+
+          // 2) اشترك في التغييرات على الـ queue
+          channelRef.current = sb.channel('matchmaking_' + data.id)
+            .on('postgres_changes', {
+              event: 'UPDATE',
+              schema: 'public',
+              table: 'matchmaking_queue',
+              filter: `id=eq.${data.id}`
+            }, (payload) => {
+              if (payload.new.status === 'matched' && !resolvedRef.current) {
+                resolvedRef.current = true;
+                clearInterval(timerRef.current);
+                setMatchmaking('found');
+                cleanup();
+                setTimeout(() => { setMatchmaking(null); setMode('1p'); }, 2000);
+              }
+            })
+            .subscribe();
+
+          // 3) حاول تطابق مع لاعب ينتظر
+          await tryMatch(data.id);
+        }
+
+        async function tryMatch(myId) {
+          // ابحث عن أي لاعب ينتظر غيري
+          const { data: waiting } = await sb
+            .from('matchmaking_queue')
+            .select('id, user_id')
+            .eq('status', 'waiting')
+            .neq('user_id', user.id)
+            .order('joined_at', { ascending: true })
+            .limit(1);
+
+          if (waiting && waiting.length > 0 && !resolvedRef.current) {
+            const opponent = waiting[0];
+            const gameId = 'game_' + Date.now();
+
+            // طابق الاثنين
+            await sb.from('matchmaking_queue').update({ status: 'matched', matched_with: user.id, game_id: gameId }).eq('id', opponent.id);
+            await sb.from('matchmaking_queue').update({ status: 'matched', matched_with: opponent.user_id, game_id: gameId }).eq('id', myId);
+
+            resolvedRef.current = true;
+            clearInterval(timerRef.current);
+            setMatchmaking('found');
+            cleanup();
+            setTimeout(() => { setMatchmaking(null); setMode('1p'); }, 2000);
+          }
+        }
+
+        function fallbackToBot() {
+          if (resolvedRef.current) return;
+          resolvedRef.current = true;
+          setMatchmaking('bot');
+          cleanup();
+          setTimeout(() => { setMatchmaking(null); setMode('1p'); }, 2000);
+        }
+
+        function cleanup() {
+          clearInterval(timerRef.current);
+          if (channelRef.current) sb.removeChannel(channelRef.current);
+          if (myEntryId.current) sb.from('matchmaking_queue').delete().eq('id', myEntryId.current).then(() => {});
+        }
+
+        // العد التنازلي
         timerRef.current = setInterval(() => {
           setMatchTimer(t => {
             if (t <= 1) {
               clearInterval(timerRef.current);
-              // بحث في Supabase عن لاعب متاح
-              searchForPlayer();
+              if (!resolvedRef.current) fallbackToBot();
               return 0;
             }
             return t - 1;
           });
         }, 1000);
 
-        return () => clearInterval(timerRef.current);
-      }, [matchmaking]);
+        joinQueue();
 
-      async function searchForPlayer() {
-        try {
-          // ابحث عن لاعب آخر في الـ presence table أو online_players
-          const fiveMinAgo = new Date(Date.now() - 5 * 60 * 1000).toISOString();
-          const { data } = await sb
-            .from('profiles')
-            .select('id, display_name')
-            .neq('id', user?.id || '')
-            .gt('last_seen', fiveMinAgo)
-            .limit(1);
+        return () => {
+          cleanup();
+        };
+      }, []);
 
-          if (data && data.length > 0) {
-            setMatchmaking('found');
-            setTimeout(() => {
-              setMatchmaking(null);
-              setMode('1p'); // في المستقبل: وضع أونلاين حقيقي
-            }, 2000);
-          } else {
-            setMatchmaking('bot');
-            setTimeout(() => {
-              setMatchmaking(null);
-              setMode('1p');
-            }, 2000);
-          }
-        } catch(e) {
-          setMatchmaking('bot');
-          setTimeout(() => {
-            setMatchmaking(null);
-            setMode('1p');
-          }, 2000);
-        }
+      function cancelSearch() {
+        if (channelRef.current) sb.removeChannel(channelRef.current);
+        if (myEntryId.current) sb.from('matchmaking_queue').delete().eq('id', myEntryId.current).then(() => {});
+        clearInterval(timerRef.current);
+        setMatchmaking(null);
       }
 
       return (
@@ -2350,7 +2407,7 @@
                 }} />
                 <div className="font-display text-3xl text-yellow-300 my-3">{matchTimer}</div>
                 <p className="font-body text-sm text-gray-400">نبحث عن لاعب حقيقي...</p>
-                <button className="btn btn-crimson mt-4" onClick={() => setMatchmaking(null)}>إلغاء</button>
+                <button className="btn btn-crimson mt-4" onClick={cancelSearch}>إلغاء</button>
               </>
             )}
             {matchmaking === 'found' && (
