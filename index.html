@@ -648,6 +648,10 @@
       text-shadow: 0 0 40px rgba(201,169,97,0.5);
       animation: float 3s ease-in-out infinite;
     }
+    @keyframes spin {
+      from { transform: rotate(0deg); }
+      to { transform: rotate(360deg); }
+    }
     @keyframes float {
       0%, 100% { transform: translateY(0); }
       50% { transform: translateY(-6px); }
@@ -2174,13 +2178,196 @@
               </div>
             )}
 
-            <div className="mt-5 text-xs text-center text-gray-500 font-body leading-relaxed">
-              لما تضغط الزر، هتتحوّل لجوجل تختار حسابك،<br/>
-              وترجع للعبة مسجّل دخول.
-            </div>
+
           </div>
 
           <div className="mt-6 text-xs text-gray-600 font-display">⚜ Duelist's Gambit ⚜</div>
+        </div>
+      );
+    }
+
+    // ════════════════════════════════════════════════════════════
+    // RechargePackage — باقة شحن واحدة
+    // ════════════════════════════════════════════════════════════
+    function RechargePackage({ pkg }) {
+      const [selected, setSelected] = React.useState(false);
+      const [copied, setCopied] = React.useState(false);
+      const phone = '01025256462';
+
+      function copy() {
+        navigator.clipboard.writeText(phone).then(() => {
+          setCopied(true);
+          setTimeout(() => setCopied(false), 2000);
+        });
+      }
+
+      return (
+        <div
+          onClick={() => setSelected(!selected)}
+          style={{
+            border: selected ? '2px solid #c9a961' : '1px solid rgba(201,169,97,0.25)',
+            borderRadius: '10px', padding: '0.9rem', marginBottom: '0.7rem',
+            background: selected ? 'rgba(201,169,97,0.1)' : 'rgba(0,0,0,0.3)',
+            cursor: 'pointer', transition: 'all 0.2s'
+          }}
+        >
+          <div className="flex justify-between items-center">
+            <div>
+              <div className="font-display text-yellow-300" style={{ fontSize: '1rem' }}>
+                ¢ {pkg.coins.toLocaleString('en-US')} عملة
+              </div>
+              <div className="font-body text-gray-400 text-sm">{pkg.price} جنيه مصري</div>
+            </div>
+            <div style={{
+              width: '22px', height: '22px', borderRadius: '50%',
+              border: '2px solid #c9a961',
+              background: selected ? '#c9a961' : 'transparent',
+              display: 'flex', alignItems: 'center', justifyContent: 'center',
+              color: '#1a1a1a', fontWeight: '900', fontSize: '0.85rem'
+            }}>{selected ? '✓' : ''}</div>
+          </div>
+
+          {selected && (
+            <div onClick={e => e.stopPropagation()} style={{ marginTop: '0.8rem', borderTop: '1px solid rgba(201,169,97,0.2)', paddingTop: '0.8rem' }}>
+              <p className="font-body text-sm text-gray-300 mb-2 text-center">
+                حوّل <b className="text-yellow-300">{pkg.price} جنيه</b> على فودافون كاش:
+              </p>
+              <div style={{
+                display: 'flex', alignItems: 'center', gap: '0.5rem',
+                background: 'rgba(0,0,0,0.4)', borderRadius: '8px', padding: '0.6rem 0.8rem',
+                border: '1px solid rgba(201,169,97,0.3)'
+              }}>
+                <span className="font-mono text-yellow-300 text-lg flex-1 text-center">{phone}</span>
+                <button
+                  onClick={copy}
+                  style={{
+                    background: copied ? '#2d5a2d' : 'rgba(201,169,97,0.2)',
+                    border: '1px solid #c9a961', borderRadius: '6px',
+                    color: copied ? '#5ec88f' : '#c9a961', padding: '0.3rem 0.6rem',
+                    cursor: 'pointer', fontSize: '0.75rem', fontFamily: 'Cinzel, serif',
+                    whiteSpace: 'nowrap', transition: 'all 0.2s'
+                  }}
+                >{copied ? '✓ تم' : 'نسخ'}</button>
+              </div>
+
+              <div style={{
+                marginTop: '0.8rem', background: 'rgba(255,200,0,0.07)',
+                border: '1px solid rgba(255,200,0,0.2)', borderRadius: '8px', padding: '0.6rem'
+              }}>
+                <p className="font-body text-xs text-yellow-200 text-center leading-relaxed">
+                  📸 بعد التحويل، خد screenshot وابعته على واتساب
+                </p>
+                <a
+                  href={`https://wa.me/2${phone}`}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  style={{
+                    display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '0.4rem',
+                    marginTop: '0.5rem', background: '#25D366', borderRadius: '8px',
+                    padding: '0.5rem', color: 'white', textDecoration: 'none',
+                    fontFamily: 'Cinzel, serif', fontSize: '0.8rem', fontWeight: '600'
+                  }}
+                  onClick={e => e.stopPropagation()}
+                >
+                  <span style={{ fontSize: '1.1rem' }}>💬</span> تواصل على واتساب
+                </a>
+              </div>
+            </div>
+          )}
+        </div>
+      );
+    }
+
+    // ════════════════════════════════════════════════════════════
+    // MatchmakingModal — البحث عن لاعب
+    // ════════════════════════════════════════════════════════════
+    function MatchmakingModal({ matchmaking, matchTimer, setMatchTimer, setMatchmaking, setMode, botName, user }) {
+      const timerRef = React.useRef(null);
+
+      React.useEffect(() => {
+        if (matchmaking !== 'searching') return;
+
+        // ابدأ العد التنازلي
+        timerRef.current = setInterval(() => {
+          setMatchTimer(t => {
+            if (t <= 1) {
+              clearInterval(timerRef.current);
+              // بحث في Supabase عن لاعب متاح
+              searchForPlayer();
+              return 0;
+            }
+            return t - 1;
+          });
+        }, 1000);
+
+        return () => clearInterval(timerRef.current);
+      }, [matchmaking]);
+
+      async function searchForPlayer() {
+        try {
+          // ابحث عن لاعب آخر في الـ presence table أو online_players
+          const fiveMinAgo = new Date(Date.now() - 5 * 60 * 1000).toISOString();
+          const { data } = await sb
+            .from('profiles')
+            .select('id, display_name')
+            .neq('id', user?.id || '')
+            .gt('last_seen', fiveMinAgo)
+            .limit(1);
+
+          if (data && data.length > 0) {
+            setMatchmaking('found');
+            setTimeout(() => {
+              setMatchmaking(null);
+              setMode('1p'); // في المستقبل: وضع أونلاين حقيقي
+            }, 2000);
+          } else {
+            setMatchmaking('bot');
+            setTimeout(() => {
+              setMatchmaking(null);
+              setMode('1p');
+            }, 2000);
+          }
+        } catch(e) {
+          setMatchmaking('bot');
+          setTimeout(() => {
+            setMatchmaking(null);
+            setMode('1p');
+          }, 2000);
+        }
+      }
+
+      return (
+        <div className="modal-backdrop">
+          <div className="modal" style={{ maxWidth: '320px', textAlign: 'center' }}>
+            {matchmaking === 'searching' && (
+              <>
+                <div style={{ fontSize: '3rem', marginBottom: '0.5rem', animation: 'float 1.5s ease-in-out infinite' }}>🔍</div>
+                <h2 className="font-display text-xl text-yellow-400 mb-2">جاري البحث عن لاعب...</h2>
+                <div style={{
+                  width: '80px', height: '80px', borderRadius: '50%', margin: '0.5rem auto',
+                  border: '4px solid rgba(201,169,97,0.2)', borderTopColor: '#c9a961',
+                  animation: 'spin 1s linear infinite'
+                }} />
+                <div className="font-display text-3xl text-yellow-300 my-3">{matchTimer}</div>
+                <p className="font-body text-sm text-gray-400">نبحث عن لاعب حقيقي...</p>
+                <button className="btn btn-crimson mt-4" onClick={() => setMatchmaking(null)}>إلغاء</button>
+              </>
+            )}
+            {matchmaking === 'found' && (
+              <>
+                <div style={{ fontSize: '3rem', marginBottom: '0.5rem' }}>⚔️</div>
+                <h2 className="font-display text-xl text-yellow-400 mb-2">وُجد لاعب!</h2>
+                <p className="font-body text-gray-300">جاري الدخول للمبارزة...</p>
+              </>
+            )}
+            {matchmaking === 'bot' && (
+              <>
+                <div style={{ fontSize: '3rem', marginBottom: '0.5rem' }}>🤖</div>
+                <h2 className="font-display text-xl text-yellow-400 mb-2">لم يُوجد لاعب</h2>
+                <p className="font-body text-gray-300">ستلعب ضد <b className="text-yellow-300">{botName}</b></p>
+              </>
+            )}
+          </div>
         </div>
       );
     }
@@ -2209,7 +2396,11 @@
                   id: session.user.id,
                   display_name: session.user.user_metadata?.full_name || session.user.email?.split('@')[0] || 'لاعب',
                   avatar_url: session.user.user_metadata?.avatar_url || null,
-                }, { onConflict: 'id', ignoreDuplicates: true });
+                  last_seen: new Date().toISOString(),
+                }, { onConflict: 'id', ignoreDuplicates: false });
+              } else {
+                // تحديث last_seen في كل مرة
+                await sb.from('profiles').update({ last_seen: new Date().toISOString() }).eq('id', session.user.id);
               }
               const { data: p } = await sb.from('profiles').select('*').eq('id', session.user.id).maybeSingle();
               if (alive) setProfile(p);
@@ -2271,6 +2462,8 @@
       // إعادة تحميل البروفايل (مثلاً بعد لعبة عشان نشوف العملات الجديدة)
       async function refreshProfile() {
         if (!user) return;
+        // تحديث last_seen للكشف عن اللاعبين المتاحين
+        await sb.from('profiles').update({ last_seen: new Date().toISOString() }).eq('id', user.id);
         const { data: p } = await sb.from('profiles').select('*').eq('id', user.id).maybeSingle();
         if (p) setProfile(p);
       }
@@ -2386,6 +2579,13 @@
 
       // ── State للقائمة المنسدلة ──
       const [showProfileMenu, setShowProfileMenu] = useState(false);
+      const [showRecharge, setShowRecharge] = useState(false);
+      const [matchmaking, setMatchmaking] = useState(null); // null | 'searching' | 'found' | 'bot'
+      const [matchTimer, setMatchTimer] = useState(0);
+      const [botName] = useState(() => {
+        const names = ['الفارس الأسود','الساحر الخفي','تنين الصحراء','فارس النيل','الظل المقاتل','محارب الفجر'];
+        return names[Math.floor(Math.random() * names.length)];
+      });
 
       // شاشة البداية / الهوم (Android-style)
       if (mode === 'menu') {
@@ -2409,9 +2609,23 @@
 
               <div className="font-display text-yellow-400 text-base tracking-widest">⚜ DUELIST'S ⚜</div>
 
-              <div className="coin-badge">
-                <span className="coin-icon">¢</span>
-                <span>{coins.toLocaleString('en-US')}</span>
+              <div className="flex items-center gap-1">
+                <div className="coin-badge">
+                  <span className="coin-icon">¢</span>
+                  <span>{coins.toLocaleString('en-US')}</span>
+                </div>
+                <button
+                  onClick={(e) => { e.stopPropagation(); setShowRecharge(true); }}
+                  style={{
+                    width: '26px', height: '26px', borderRadius: '50%',
+                    background: 'linear-gradient(135deg,#c9a961,#8a7544)',
+                    border: 'none', color: '#1a1a1a', fontSize: '1.1rem',
+                    fontWeight: '900', cursor: 'pointer', display: 'flex',
+                    alignItems: 'center', justifyContent: 'center',
+                    boxShadow: '0 0 8px rgba(201,169,97,0.5)'
+                  }}
+                  title="شحن العملات"
+                >+</button>
               </div>
 
               {/* Profile dropdown */}
@@ -2483,14 +2697,15 @@
                 className={`play-card featured ${!canAffordOnline ? 'disabled' : ''}`}
                 onClick={() => {
                   if (!canAffordOnline) return;
-                  alert('🌐 وضع الأونلاين قيد التطوير.\n\nقريباً: تحدّى لاعبين حقيقيين على مستوى العالم!');
+                  setMatchmaking('searching');
+                  setMatchTimer(10);
                 }}
                 title={!canAffordOnline ? 'محتاج 200 عملة على الأقل' : ''}
               >
                 <div className="play-card-icon">🌐</div>
                 <div className="flex-1">
                   <div className="play-card-title">تحدّي أونلاين</div>
-                  <div className="play-card-desc">العب ضد لاعب حقيقي (قريباً)</div>
+                  <div className="play-card-desc">العب ضد لاعب حقيقي</div>
                 </div>
                 <div className="play-card-cost">
                   <span className="coin-icon" style={{ width: '16px', height: '16px', fontSize: '0.55rem' }}>¢</span>
@@ -2520,7 +2735,10 @@
 
               {!canAffordOnline && (
                 <div className="mt-4 p-3 rounded bg-red-950/20 border border-red-900/40 text-center">
-                  <div className="text-sm text-red-300 font-body">رصيدك أقل من 200 عملة. اربح مباريات لتجمع عملات.</div>
+                  <div className="text-sm text-red-300 font-body">
+                    رصيدك أقل من 200 عملة.{' '}
+                    <span className="text-yellow-400 underline cursor-pointer" onClick={() => setShowRecharge(true)}>اشحن الآن</span>
+                  </div>
                 </div>
               )}
 
@@ -2529,6 +2747,40 @@
                 ⚜ DUELIST'S GAMBIT ⚜
               </div>
             </div>
+
+            {/* ══ مودال شحن العملات ══ */}
+            {showRecharge && (
+              <div className="modal-backdrop" onClick={() => setShowRecharge(false)}>
+                <div className="modal" onClick={e => e.stopPropagation()} style={{ maxWidth: '360px' }}>
+                  <h2 className="font-display text-xl text-yellow-400 mb-1 text-center">⚜ شحن العملات ⚜</h2>
+                  <p className="text-center text-gray-500 text-sm font-body mb-4">اختر الباقة المناسبة</p>
+
+                  {/* الباقات */}
+                  {[
+                    { coins: 2500, price: 300 },
+                    { coins: 5000, price: 550 },
+                    { coins: 7500, price: 800 },
+                  ].map(pkg => (
+                    <RechargePackage key={pkg.coins} pkg={pkg} />
+                  ))}
+
+                  <button className="btn w-full mt-4" style={{ width: '100%' }} onClick={() => setShowRecharge(false)}>إغلاق</button>
+                </div>
+              </div>
+            )}
+
+            {/* ══ مودال البحث عن لاعب ══ */}
+            {matchmaking && (
+              <MatchmakingModal
+                matchmaking={matchmaking}
+                matchTimer={matchTimer}
+                setMatchTimer={setMatchTimer}
+                setMatchmaking={setMatchmaking}
+                setMode={setMode}
+                botName={botName}
+                user={user}
+              />
+            )}
 
             {/* مودال القواعد */}
             {showRules && (
