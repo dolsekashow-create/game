@@ -2234,22 +2234,28 @@
           if (!alive) return;
 
           // PKCE: لو في ?code= في الـ URL، يعني رجعنا من OAuth
-          // Supabase detectSessionInUrl=true هيتعامل معاه تلقائياً
-          // بس نديه وقت كافي عشان يكمل
+          // نخلّي Supabase يقرأه بنفسه عبر exchangeCodeForSession
           const urlParams = new URLSearchParams(window.location.search);
-          const hasCode = urlParams.has('code');
-          if (hasCode) {
-            // امسح الـ code من الـ URL عشان ما يتشاركش
+          const code = urlParams.get('code');
+          if (code) {
+            try {
+              // Supabase يحوّل الـ code لـ session — ده الخطوة الأساسية
+              const { data, error } = await sb.auth.exchangeCodeForSession(window.location.href);
+              if (error) console.warn('exchangeCodeForSession error:', error);
+            } catch (e) {
+              console.warn('exchangeCodeForSession exception:', e);
+            }
+            // امسح الـ code من الـ URL بعد ما Supabase قرأه
             window.history.replaceState(null, '', window.location.pathname);
-            // انتظر Supabase يعالج الـ code ويطلق onAuthStateChange
-            await new Promise(res => setTimeout(res, 2000));
             if (!alive) return;
+            // onAuthStateChange هيشتغل تلقائياً بعد exchangeCodeForSession
+            return;
           }
 
           // فحص جلسة موجودة (للمستخدم اللي سجّل دخوله من قبل)
           try {
             const { data: { session } } = await sb.auth.getSession();
-            if (alive && session?.user && bootState !== 'ready') {
+            if (alive && session?.user) {
               setUser(session.user);
               try {
                 const { data: p } = await sb.from('profiles').select('*').eq('id', session.user.id).maybeSingle();
