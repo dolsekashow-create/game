@@ -1,0 +1,1910 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Duelist's Gambit — مبارزة الشطرنج السحري</title>
+
+  <!-- Fonts -->
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link
+    href="https://fonts.googleapis.com/css2?family=Cinzel:wght@500;700;900&family=Cormorant+Garamond:ital,wght@0,400;0,600;1,400&family=Amiri:wght@400;700&family=JetBrains+Mono:wght@500;700&display=swap"
+    rel="stylesheet"
+  />
+
+  <!-- Tailwind -->
+  <script src="https://cdn.tailwindcss.com"></script>
+
+  <!-- Supabase SDK -->
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+
+  <!-- React + Babel -->
+  <script crossorigin src="https://unpkg.com/react@18/umd/react.production.min.js"></script>
+  <script crossorigin src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js"></script>
+  <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
+
+  <style>
+    :root {
+      --bg-deep: #0a0a0f;
+      --bg-mid: #15131c;
+      --bg-light: #1f1c2a;
+      --gold: #c9a961;
+      --gold-bright: #e8c876;
+      --gold-dim: #8a7544;
+      --crimson: #8b1a1a;
+      --crimson-bright: #c43434;
+      --p1: #d4a04a;
+      --p1-dark: #6b4a1a;
+      --p2: #6b8cff;
+      --p2-dark: #2a3a8a;
+      --frame-unit: #c9a961;
+      --frame-spell: #6b8cff;
+      --frame-trap: #c43434;
+      --text-soft: #d8d2c4;
+      --text-dim: #8a8275;
+    }
+
+    html, body {
+      margin: 0;
+      padding: 0;
+      background: var(--bg-deep);
+      color: var(--text-soft);
+      font-family: 'Cormorant Garamond', 'Amiri', serif;
+      min-height: 100vh;
+      overflow-x: hidden;
+    }
+
+    body {
+      background:
+        radial-gradient(ellipse at top, #1a1530 0%, transparent 60%),
+        radial-gradient(ellipse at bottom, #1a1020 0%, transparent 60%),
+        var(--bg-deep);
+      background-attachment: fixed;
+    }
+
+    /* Subtle grain overlay */
+    body::before {
+      content: "";
+      position: fixed;
+      inset: 0;
+      pointer-events: none;
+      opacity: 0.04;
+      background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 200 200' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.85' numOctaves='3'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)'/%3E%3C/svg%3E");
+      z-index: 9999;
+    }
+
+    .font-display { font-family: 'Cinzel', serif; letter-spacing: 0.04em; }
+    .font-body { font-family: 'Cormorant Garamond', serif; }
+    .font-mono { font-family: 'JetBrains Mono', monospace; }
+    .font-ar { font-family: 'Amiri', serif; }
+
+    /* Board styling */
+    .board-cell {
+      aspect-ratio: 1;
+      position: relative;
+      cursor: pointer;
+      transition: all 0.15s ease;
+      border: 1px solid rgba(201, 169, 97, 0.08);
+    }
+    .board-cell.light {
+      background: linear-gradient(135deg, #2d2620 0%, #221c17 100%);
+    }
+    .board-cell.dark {
+      background: linear-gradient(135deg, #15110d 0%, #0d0a07 100%);
+    }
+    .board-cell.valid-move {
+      box-shadow: inset 0 0 0 3px rgba(105, 200, 105, 0.6);
+      background: rgba(105, 200, 105, 0.08);
+    }
+    .board-cell.valid-attack {
+      box-shadow: inset 0 0 0 3px rgba(220, 60, 60, 0.7);
+      background: rgba(220, 60, 60, 0.12);
+    }
+    .board-cell.valid-summon {
+      box-shadow: inset 0 0 0 3px rgba(201, 169, 97, 0.7);
+      background: rgba(201, 169, 97, 0.10);
+    }
+    .board-cell.valid-target {
+      box-shadow: inset 0 0 0 3px rgba(150, 100, 220, 0.7);
+      background: rgba(150, 100, 220, 0.12);
+    }
+    .board-cell.selected {
+      box-shadow: inset 0 0 0 3px var(--gold-bright);
+      background: rgba(232, 200, 118, 0.15);
+    }
+    .board-cell:hover:not(.valid-move):not(.valid-attack):not(.valid-summon):not(.valid-target):not(.selected) {
+      filter: brightness(1.2);
+    }
+
+    /* Coordinate labels */
+    .coord-label {
+      position: absolute;
+      font-family: 'Cinzel', serif;
+      font-size: 0.6rem;
+      color: rgba(201, 169, 97, 0.4);
+      pointer-events: none;
+    }
+    .coord-label.row { left: 4px; top: 2px; }
+    .coord-label.col { right: 4px; bottom: 2px; }
+
+    /* Piece on board */
+    .piece {
+      position: absolute;
+      inset: 6%;
+      border-radius: 8px;
+      display: flex;
+      flex-direction: column;
+      justify-content: space-between;
+      padding: 4px;
+      box-shadow: 0 2px 12px rgba(0, 0, 0, 0.5);
+      transition: transform 0.2s ease;
+      overflow: hidden;
+    }
+    .piece:hover {
+      transform: scale(1.05);
+      z-index: 10;
+    }
+    .piece.p1 {
+      background: linear-gradient(135deg, #4a3010 0%, #2a1d0a 70%, #1a1208 100%);
+      border: 2px solid var(--p1);
+    }
+    .piece.p2 {
+      background: linear-gradient(135deg, #1d2855 0%, #0f1535 70%, #08102a 100%);
+      border: 2px solid var(--p2);
+    }
+    .piece.king.p1 {
+      background: linear-gradient(135deg, #6b3a08 0%, #3a200a 70%, #1d100a 100%);
+      border: 2px solid var(--gold-bright);
+      box-shadow: 0 0 12px rgba(232, 200, 118, 0.4), 0 2px 12px rgba(0,0,0,0.5);
+    }
+    .piece.king.p2 {
+      background: linear-gradient(135deg, #2d3a8a 0%, #18205a 70%, #0a0e3a 100%);
+      border: 2px solid #a0b8ff;
+      box-shadow: 0 0 12px rgba(160, 184, 255, 0.4), 0 2px 12px rgba(0,0,0,0.5);
+    }
+    .piece-name {
+      font-family: 'Cinzel', serif;
+      font-size: 0.55rem;
+      font-weight: 700;
+      text-align: center;
+      color: var(--text-soft);
+      line-height: 1;
+      text-shadow: 0 1px 2px rgba(0,0,0,0.8);
+    }
+    .piece-stats {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      font-family: 'JetBrains Mono', monospace;
+      font-size: 0.7rem;
+      font-weight: 700;
+    }
+    .stat-atk { color: #ff8866; text-shadow: 0 1px 2px rgba(0,0,0,0.8); }
+    .stat-hp { color: #66cc99; text-shadow: 0 1px 2px rgba(0,0,0,0.8); }
+    .piece.sick { opacity: 0.55; }
+    .piece.sick::after {
+      content: "💤";
+      position: absolute;
+      top: -2px;
+      right: -2px;
+      font-size: 0.7rem;
+    }
+
+    /* Trap on board */
+    .trap-marker {
+      position: absolute;
+      inset: 20%;
+      background: linear-gradient(135deg, #4a1010 0%, #2a0808 100%);
+      border: 2px solid var(--crimson-bright);
+      border-radius: 50%;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      color: var(--crimson-bright);
+      font-size: 1.4rem;
+      font-weight: 900;
+      box-shadow: 0 0 10px rgba(196, 52, 52, 0.4), inset 0 0 8px rgba(0,0,0,0.5);
+      animation: pulse-trap 2.5s ease-in-out infinite;
+    }
+    @keyframes pulse-trap {
+      0%, 100% { opacity: 0.85; }
+      50% { opacity: 0.5; }
+    }
+
+    /* Card styling */
+    .card {
+      width: 130px;
+      min-height: 195px;
+      background: linear-gradient(165deg, #1a1622 0%, #100c18 100%);
+      border-radius: 8px;
+      padding: 6px;
+      position: relative;
+      transition: transform 0.2s ease, box-shadow 0.2s ease;
+      cursor: pointer;
+      flex-shrink: 0;
+      display: flex;
+      flex-direction: column;
+      box-shadow: 0 4px 16px rgba(0,0,0,0.6);
+    }
+    .card.unit { border: 2px solid var(--frame-unit); }
+    .card.spell { border: 2px solid var(--frame-spell); }
+    .card.trap { border: 2px solid var(--frame-trap); }
+    .card:hover {
+      transform: translateY(-12px) scale(1.04);
+      box-shadow: 0 12px 24px rgba(0,0,0,0.8), 0 0 20px rgba(201,169,97,0.3);
+      z-index: 50;
+    }
+    .card.selected {
+      transform: translateY(-16px) scale(1.06);
+      box-shadow: 0 16px 28px rgba(0,0,0,0.8), 0 0 32px var(--gold-bright);
+    }
+    .card.unaffordable {
+      opacity: 0.4;
+      cursor: not-allowed;
+    }
+    .card.unaffordable:hover {
+      transform: none;
+      box-shadow: 0 4px 16px rgba(0,0,0,0.6);
+    }
+
+    .card-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      gap: 4px;
+      padding: 0 2px;
+      margin-bottom: 4px;
+    }
+    .card-cost {
+      width: 22px;
+      height: 22px;
+      border-radius: 50%;
+      background: linear-gradient(135deg, #6b8cff 0%, #2a3a8a 100%);
+      border: 1.5px solid #a0b8ff;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-family: 'JetBrains Mono', monospace;
+      font-weight: 700;
+      font-size: 0.75rem;
+      color: white;
+      flex-shrink: 0;
+      box-shadow: 0 0 6px rgba(107, 140, 255, 0.5);
+    }
+    .card-name {
+      font-family: 'Cinzel', serif;
+      font-size: 0.7rem;
+      font-weight: 700;
+      color: var(--gold-bright);
+      line-height: 1;
+      text-align: right;
+      flex: 1;
+    }
+    .card-image {
+      aspect-ratio: 1;
+      background: linear-gradient(135deg, #2a2530 0%, #15101a 100%);
+      border: 1px solid rgba(201,169,97,0.2);
+      border-radius: 4px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      color: rgba(201,169,97,0.3);
+      font-size: 2.5rem;
+      overflow: hidden;
+      position: relative;
+    }
+    .card-image img {
+      width: 100%;
+      height: 100%;
+      object-fit: cover;
+    }
+    .card-image-placeholder {
+      font-family: 'Cinzel', serif;
+      font-size: 0.55rem;
+      color: rgba(201,169,97,0.4);
+      text-align: center;
+      padding: 4px;
+      line-height: 1.2;
+    }
+    .card-type-badge {
+      position: absolute;
+      bottom: 6px;
+      left: 6px;
+      font-family: 'Cinzel', serif;
+      font-size: 0.5rem;
+      letter-spacing: 0.08em;
+      padding: 2px 5px;
+      border-radius: 3px;
+      background: rgba(0,0,0,0.7);
+      color: var(--gold);
+      text-transform: uppercase;
+    }
+    .card-stats-row {
+      display: flex;
+      justify-content: space-around;
+      align-items: center;
+      margin-top: 4px;
+      padding: 3px 4px;
+      background: rgba(0,0,0,0.4);
+      border-radius: 4px;
+      border: 1px solid rgba(201,169,97,0.15);
+    }
+    .card-stat {
+      font-family: 'JetBrains Mono', monospace;
+      font-size: 0.7rem;
+      font-weight: 700;
+      display: flex;
+      align-items: center;
+      gap: 2px;
+    }
+    .card-desc {
+      font-family: 'Cormorant Garamond', 'Amiri', serif;
+      font-size: 0.65rem;
+      color: var(--text-soft);
+      line-height: 1.2;
+      margin-top: 4px;
+      padding: 0 2px;
+      font-style: italic;
+      flex-grow: 1;
+    }
+    .card-move {
+      font-family: 'Cinzel', serif;
+      font-size: 0.55rem;
+      color: var(--text-dim);
+      text-align: center;
+      margin-top: 2px;
+      text-transform: uppercase;
+      letter-spacing: 0.05em;
+    }
+
+    /* Card back (for opponent's hand) */
+    .card-back {
+      width: 70px;
+      min-height: 100px;
+      background:
+        repeating-linear-gradient(45deg, #2a1a3a 0px, #2a1a3a 4px, #1a1028 4px, #1a1028 8px),
+        #2a1a3a;
+      border: 2px solid var(--gold-dim);
+      border-radius: 6px;
+      flex-shrink: 0;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-family: 'Cinzel', serif;
+      color: var(--gold-bright);
+      font-size: 1.4rem;
+      box-shadow: 0 3px 10px rgba(0,0,0,0.5), inset 0 0 12px rgba(0,0,0,0.4);
+    }
+
+    /* Buttons */
+    .btn {
+      font-family: 'Cinzel', serif;
+      font-weight: 600;
+      letter-spacing: 0.1em;
+      padding: 0.6rem 1.4rem;
+      border: 1.5px solid var(--gold);
+      background: linear-gradient(135deg, rgba(201,169,97,0.15) 0%, rgba(201,169,97,0.05) 100%);
+      color: var(--gold-bright);
+      border-radius: 4px;
+      cursor: pointer;
+      transition: all 0.2s ease;
+      text-transform: uppercase;
+      font-size: 0.85rem;
+    }
+    .btn:hover {
+      background: linear-gradient(135deg, rgba(201,169,97,0.3) 0%, rgba(201,169,97,0.15) 100%);
+      box-shadow: 0 0 16px rgba(201,169,97,0.4);
+    }
+    .btn:active { transform: translateY(1px); }
+    .btn-crimson {
+      border-color: var(--crimson-bright);
+      color: var(--crimson-bright);
+      background: linear-gradient(135deg, rgba(196,52,52,0.15) 0%, rgba(196,52,52,0.05) 100%);
+    }
+    .btn-crimson:hover {
+      background: linear-gradient(135deg, rgba(196,52,52,0.3) 0%, rgba(196,52,52,0.15) 100%);
+      box-shadow: 0 0 16px rgba(196,52,52,0.4);
+    }
+
+    /* Mana orb */
+    .mana-orb {
+      width: 28px;
+      height: 28px;
+      border-radius: 50%;
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      font-family: 'JetBrains Mono', monospace;
+      font-weight: 700;
+      font-size: 0.85rem;
+    }
+    .mana-orb.full {
+      background: radial-gradient(circle at 30% 30%, #a0b8ff 0%, #4a6acc 60%, #1a2a6c 100%);
+      box-shadow: 0 0 10px rgba(107, 140, 255, 0.5);
+      color: white;
+    }
+    .mana-orb.empty {
+      background: radial-gradient(circle at 30% 30%, #3a3a4a 0%, #1a1a25 100%);
+      color: var(--text-dim);
+      box-shadow: inset 0 0 4px rgba(0,0,0,0.5);
+    }
+
+    /* HP bar (for king) */
+    .hp-bar {
+      width: 100%;
+      height: 8px;
+      background: #2a1010;
+      border: 1px solid var(--crimson);
+      border-radius: 2px;
+      overflow: hidden;
+      position: relative;
+    }
+    .hp-bar-fill {
+      height: 100%;
+      background: linear-gradient(90deg, #c43434 0%, #ff5544 50%, #c43434 100%);
+      transition: width 0.4s ease;
+    }
+
+    /* Action log */
+    .log-entry {
+      font-size: 0.85rem;
+      padding: 0.3rem 0.5rem;
+      margin-bottom: 0.25rem;
+      background: rgba(255,255,255,0.02);
+      border-right: 2px solid var(--gold-dim);
+      border-radius: 3px;
+      color: var(--text-soft);
+      animation: log-in 0.3s ease;
+    }
+    @keyframes log-in {
+      from { opacity: 0; transform: translateX(-8px); }
+      to { opacity: 1; transform: translateX(0); }
+    }
+    .log-entry.p1 { border-right-color: var(--p1); }
+    .log-entry.p2 { border-right-color: var(--p2); }
+    .log-entry.combat { border-right-color: var(--crimson-bright); }
+    .log-entry.summon { border-right-color: var(--gold-bright); }
+    .log-entry.system { border-right-color: var(--text-dim); font-style: italic; color: var(--text-dim); }
+
+    /* Tooltip */
+    .tooltip {
+      position: absolute;
+      bottom: 100%;
+      left: 50%;
+      transform: translateX(-50%);
+      margin-bottom: 8px;
+      background: var(--bg-mid);
+      border: 1px solid var(--gold);
+      padding: 0.5rem 0.75rem;
+      border-radius: 4px;
+      font-size: 0.75rem;
+      white-space: nowrap;
+      pointer-events: none;
+      opacity: 0;
+      transition: opacity 0.2s;
+      z-index: 100;
+    }
+    .has-tooltip:hover .tooltip { opacity: 1; }
+
+    /* Modal */
+    .modal-backdrop {
+      position: fixed;
+      inset: 0;
+      background: rgba(5, 5, 12, 0.85);
+      backdrop-filter: blur(6px);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      z-index: 1000;
+    }
+    .modal {
+      background: linear-gradient(165deg, #1a1622 0%, #100c18 100%);
+      border: 2px solid var(--gold);
+      border-radius: 8px;
+      padding: 2rem;
+      max-width: 600px;
+      width: 90%;
+      max-height: 85vh;
+      overflow-y: auto;
+      box-shadow: 0 0 40px rgba(201,169,97,0.3);
+    }
+
+    /* Phase indicator */
+    .phase-banner {
+      position: fixed;
+      top: 50%;
+      left: 50%;
+      transform: translate(-50%, -50%);
+      background: rgba(0,0,0,0.85);
+      border: 2px solid var(--gold);
+      padding: 2rem 4rem;
+      border-radius: 8px;
+      font-family: 'Cinzel', serif;
+      font-size: 2rem;
+      color: var(--gold-bright);
+      z-index: 500;
+      box-shadow: 0 0 40px rgba(201,169,97,0.5);
+      animation: banner 1.8s ease forwards;
+      pointer-events: none;
+    }
+    @keyframes banner {
+      0% { opacity: 0; transform: translate(-50%, -50%) scale(0.8); }
+      20%, 80% { opacity: 1; transform: translate(-50%, -50%) scale(1); }
+      100% { opacity: 0; transform: translate(-50%, -50%) scale(1.1); }
+    }
+
+    /* Scrollbar */
+    ::-webkit-scrollbar { width: 8px; height: 8px; }
+    ::-webkit-scrollbar-track { background: var(--bg-mid); }
+    ::-webkit-scrollbar-thumb { background: var(--gold-dim); border-radius: 4px; }
+    ::-webkit-scrollbar-thumb:hover { background: var(--gold); }
+
+    /* Decorative line */
+    .ornament-line {
+      display: flex;
+      align-items: center;
+      gap: 0.5rem;
+      color: var(--gold-dim);
+    }
+    .ornament-line::before, .ornament-line::after {
+      content: "";
+      flex: 1;
+      height: 1px;
+      background: linear-gradient(90deg, transparent, var(--gold-dim), transparent);
+    }
+
+    /* Responsive */
+    @media (max-width: 1100px) {
+      .card { width: 110px; min-height: 165px; }
+    }
+  </style>
+</head>
+<body>
+  <div id="root"></div>
+
+  <script type="text/babel">
+    const { useState, useEffect, useReducer, useRef, useMemo } = React;
+
+    // ════════════════════════════════════════════════════════════
+    // SUPABASE CONFIGURATION
+    // ════════════════════════════════════════════════════════════
+    const SUPABASE_URL = 'https://gioipkyeaqhqimnzwxnl.supabase.co';
+    const SUPABASE_ANON_KEY = 'sb_publishable_RueQN20GRQjDKnnDiX0Isg_sEU3YHm3';
+    const sb = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+
+    // ════════════════════════════════════════════════════════════
+    // CARD DATABASE — جميع الكروت (20 كارت) — القيم الافتراضية
+    // ════════════════════════════════════════════════════════════
+    //
+    // البيانات المحملة من Supabase تطغى على هذه الافتراضات.
+    // عدّل الكروت من لوحة التحكم admin.html بدلاً من تعديل هذا الملف.
+
+    const DEFAULT_CARDS = [
+      // ─── UNITS (12) ───
+      { id: 'u01', name_en: 'Foot Soldier', name_ar: 'جندي مشاة', type: 'unit',
+        cost: 1, movement: 'pawn', atk: 1, hp: 2,
+        desc_ar: 'يتحرك خطوة واحدة للأمام.',
+        image: null, icon: '⚔️' },
+
+      { id: 'u02', name_en: 'Bowman', name_ar: 'رامي السهام', type: 'unit',
+        cost: 2, movement: 'pawn', atk: 3, hp: 1,
+        desc_ar: 'هجوم قوي، صحة هشة. اضربه قبل أن يضربك.',
+        image: null, icon: '🏹' },
+
+      { id: 'u03', name_en: 'Mounted Knight', name_ar: 'الفارس الراكب', type: 'unit',
+        cost: 3, movement: 'knight', atk: 3, hp: 2,
+        desc_ar: 'يقفز فوق القطع كحصان الشطرنج. سريع ومناور.',
+        image: null, icon: '🐎' },
+
+      { id: 'u04', name_en: 'Cleric', name_ar: 'الكاهن', type: 'unit',
+        cost: 3, movement: 'bishop', atk: 1, hp: 4,
+        desc_ar: 'يتحرك قطرياً. مرافقوه الجوار يحصلون على +1 صحة.',
+        image: null, icon: '✝️', ability: 'aura_hp' },
+
+      { id: 'u05', name_en: 'Royal Templar', name_ar: 'فارس الهيكل', type: 'unit',
+        cost: 4, movement: 'king', atk: 3, hp: 4,
+        desc_ar: 'خطوة واحدة في أي اتجاه. متوازن وقوي.',
+        image: null, icon: '🛡️' },
+
+      { id: 'u06', name_en: 'Sentinel', name_ar: 'الحارس', type: 'unit',
+        cost: 4, movement: 'rook_2', atk: 2, hp: 5,
+        desc_ar: 'يتحرك مستقيماً حتى خانتين. درع متين.',
+        image: null, icon: '🗡️' },
+
+      { id: 'u07', name_en: 'Battle Mage', name_ar: 'الساحر المحارب', type: 'unit',
+        cost: 4, movement: 'bishop', atk: 3, hp: 3,
+        desc_ar: 'حركة الفيل. ساحر متعدد المواهب.',
+        image: null, icon: '🔮' },
+
+      { id: 'u08', name_en: 'Shadow Assassin', name_ar: 'قاتل الظلال', type: 'unit',
+        cost: 3, movement: 'knight', atk: 4, hp: 1,
+        desc_ar: 'سيف فتاك بدرع هش. ضربة واحدة قاتلة.',
+        image: null, icon: '🗡️' },
+
+      { id: 'u09', name_en: 'War Beast', name_ar: 'الوحش الحربي', type: 'unit',
+        cost: 5, movement: 'queen_3', atk: 4, hp: 4,
+        desc_ar: 'يتحرك كالملكة لكن حتى 3 خانات. متوازن.',
+        image: null, icon: '🐺' },
+
+      { id: 'u10', name_en: 'Phoenix Knight', name_ar: 'فارس العنقاء', type: 'unit',
+        cost: 5, movement: 'bishop', atk: 3, hp: 3,
+        desc_ar: 'عند موته، يعود إلى يدك بدلاً من المقبرة.',
+        image: null, icon: '🔥', ability: 'phoenix' },
+
+      { id: 'u11', name_en: 'Stone Golem', name_ar: 'تمثال الحجر', type: 'unit',
+        cost: 5, movement: 'king', atk: 3, hp: 7,
+        desc_ar: 'بطيء لكنه شبه خالد. جدار متحرك.',
+        image: null, icon: '🗿' },
+
+      { id: 'u12', name_en: 'Ancient Dragon', name_ar: 'التنين العتيق', type: 'unit',
+        cost: 7, movement: 'queen', atk: 5, hp: 5,
+        desc_ar: 'حركة الملكة الكاملة. أقوى وحش في اللعبة.',
+        image: null, icon: '🐲' },
+
+      // ─── SPELLS (4) ───
+      { id: 's01', name_en: 'Fireball', name_ar: 'كرة النار', type: 'spell',
+        cost: 3,
+        desc_ar: 'وجّه 4 ضرر لأي وحش على الرقعة.',
+        image: null, icon: '🔥', target: 'any_unit', damage: 4 },
+
+      { id: 's02', name_en: 'Healing Light', name_ar: 'نور الشفاء', type: 'spell',
+        cost: 2,
+        desc_ar: 'استرد الصحة الكاملة لأحد وحوشك.',
+        image: null, icon: '✨', target: 'own_unit' },
+
+      { id: 's03', name_en: 'Arcane Teleport', name_ar: 'الانتقال السحري', type: 'spell',
+        cost: 3,
+        desc_ar: 'انقل أحد وحوشك إلى أي خانة فاضية في نصفك.',
+        image: null, icon: '🌀', target: 'own_unit_then_empty' },
+
+      { id: 's04', name_en: 'Reinforcements', name_ar: 'التعزيزات', type: 'spell',
+        cost: 2,
+        desc_ar: 'اسحب كرتين من ديكك.',
+        image: null, icon: '📜', target: 'self' },
+
+      // ─── TRAPS (4) ───
+      { id: 't01', name_en: 'Pitfall', name_ar: 'الحفرة', type: 'trap',
+        cost: 2,
+        desc_ar: 'عندما يدخل وحش العدو الخانة: يُدمَّر فوراً.',
+        image: null, icon: '🕳️', effect: 'destroy' },
+
+      { id: 't02', name_en: 'Snare', name_ar: 'الكمين', type: 'trap',
+        cost: 1,
+        desc_ar: 'عندما يدخل وحش العدو: لا يستطيع التحرك في الدور التالي.',
+        image: null, icon: '🪤', effect: 'snare' },
+
+      { id: 't03', name_en: 'Mirror Trap', name_ar: 'فخ المرآة', type: 'trap',
+        cost: 3,
+        desc_ar: 'عندما يدخل وحش العدو: يعود إلى يد صاحبه.',
+        image: null, icon: '🪞', effect: 'bounce' },
+
+      { id: 't04', name_en: 'Explosive Rune', name_ar: 'الرونة المتفجرة', type: 'trap',
+        cost: 2,
+        desc_ar: 'انفجار: 3 ضرر للوحش الذي دخل وكل الوحوش المجاورة.',
+        image: null, icon: '💥', effect: 'explode' }
+    ];
+
+    // CARDS و CARD_BY_ID متغيرات قابلة للتحديث من Supabase
+    let CARDS = [...DEFAULT_CARDS];
+    let CARD_BY_ID = Object.fromEntries(CARDS.map(c => [c.id, c]));
+    let CARD_BACK_IMAGE = null; // رابط صورة ضهر الكروت (من Supabase أو null)
+
+    // تحميل البيانات من Supabase. لو فشل، نستعمل الافتراضات.
+    async function loadFromSupabase() {
+      try {
+        // تحميل الكروت
+        const { data: cardsData, error: cardsErr } = await sb
+          .from('cards')
+          .select('*');
+        if (!cardsErr && cardsData && cardsData.length > 0) {
+          // دمج: نأخذ الكارت من DB، ولو ناقصة حقول نأخذها من الافتراضي
+          CARDS = DEFAULT_CARDS.map(def => {
+            const db = cardsData.find(c => c.id === def.id);
+            if (!db) return def;
+            return {
+              ...def,
+              name_en: db.name_en ?? def.name_en,
+              name_ar: db.name_ar ?? def.name_ar,
+              type: db.type ?? def.type,
+              cost: db.cost ?? def.cost,
+              movement: db.movement ?? def.movement,
+              atk: db.atk ?? def.atk,
+              hp: db.hp ?? def.hp,
+              desc_ar: db.desc_ar ?? def.desc_ar,
+              icon: db.icon ?? def.icon,
+              image: db.image_url ?? def.image,
+              ability: db.ability ?? def.ability,
+              target: db.target ?? def.target,
+              effect: db.effect ?? def.effect,
+              damage: db.damage ?? def.damage
+            };
+          });
+          CARD_BY_ID = Object.fromEntries(CARDS.map(c => [c.id, c]));
+        }
+        // تحميل الإعدادات (صورة ضهر الكروت)
+        const { data: settingsData, error: settingsErr } = await sb
+          .from('settings')
+          .select('*')
+          .eq('id', 1)
+          .maybeSingle();
+        if (!settingsErr && settingsData?.card_back_url) {
+          CARD_BACK_IMAGE = settingsData.card_back_url;
+        }
+        return { ok: true };
+      } catch (e) {
+        console.warn('Supabase load failed, using defaults:', e);
+        return { ok: false, error: e };
+      }
+    }
+
+    // ════════════════════════════════════════════════════════════
+    // ملك كل لاعب — وحدة خاصة، غير موجودة في الديك
+    // ════════════════════════════════════════════════════════════
+    const KING_TEMPLATE = {
+      id: 'king',
+      name_en: 'King',
+      name_ar: 'الملك',
+      type: 'unit',
+      isKing: true,
+      movement: 'king',
+      atk: 2,
+      hp: 6,
+      maxHp: 6,
+      icon: '👑'
+    };
+
+    // ════════════════════════════════════════════════════════════
+    // GAME CONSTANTS
+    // ════════════════════════════════════════════════════════════
+    const BOARD_SIZE = 8;
+    const STARTING_HAND = 5;
+    const MAX_HAND = 8;
+    const STARTING_MANA = 1;
+    const MAX_MANA = 10;
+    const KING_START_COL = 3; // ملف d
+
+    // ════════════════════════════════════════════════════════════
+    // MOVEMENT PATTERNS — يرجع قائمة بالخانات الصالحة
+    // ════════════════════════════════════════════════════════════
+    function getMovementSquares(unit, fromR, fromC, board, playerNum) {
+      const squares = [];
+      const dir = playerNum === 1 ? 1 : -1; // اتجاه "للأمام" لكل لاعب
+      const inBounds = (r, c) => r >= 0 && r < BOARD_SIZE && c >= 0 && c < BOARD_SIZE;
+      const isEmpty = (r, c) => !board[r][c].unit;
+      const isEnemy = (r, c) => board[r][c].unit && board[r][c].unit.playerNum !== playerNum;
+      const isAlly = (r, c) => board[r][c].unit && board[r][c].unit.playerNum === playerNum;
+
+      switch (unit.movement) {
+        case 'pawn': {
+          // خطوة واحدة للأمام (لا يأكل قطرياً مثل الشطرنج، ببساطة)
+          const fr = fromR + dir;
+          if (inBounds(fr, fromC) && !isAlly(fr, fromC)) {
+            squares.push({ r: fr, c: fromC });
+          }
+          // ويأكل قطرياً للأمام
+          for (const dc of [-1, 1]) {
+            const tr = fromR + dir, tc = fromC + dc;
+            if (inBounds(tr, tc) && isEnemy(tr, tc)) {
+              squares.push({ r: tr, c: tc });
+            }
+          }
+          break;
+        }
+        case 'knight': {
+          const deltas = [[-2,-1],[-2,1],[-1,-2],[-1,2],[1,-2],[1,2],[2,-1],[2,1]];
+          for (const [dr, dc] of deltas) {
+            const r = fromR+dr, c = fromC+dc;
+            if (inBounds(r,c) && !isAlly(r,c)) squares.push({r,c});
+          }
+          break;
+        }
+        case 'bishop':
+        case 'rook':
+        case 'queen':
+        case 'rook_2':
+        case 'queen_3': {
+          let dirs = [];
+          let maxRange = BOARD_SIZE;
+          if (unit.movement === 'bishop') dirs = [[-1,-1],[-1,1],[1,-1],[1,1]];
+          else if (unit.movement === 'rook') dirs = [[-1,0],[1,0],[0,-1],[0,1]];
+          else if (unit.movement === 'queen') dirs = [[-1,-1],[-1,1],[1,-1],[1,1],[-1,0],[1,0],[0,-1],[0,1]];
+          else if (unit.movement === 'rook_2') { dirs = [[-1,0],[1,0],[0,-1],[0,1]]; maxRange = 2; }
+          else if (unit.movement === 'queen_3') { dirs = [[-1,-1],[-1,1],[1,-1],[1,1],[-1,0],[1,0],[0,-1],[0,1]]; maxRange = 3; }
+          for (const [dr, dc] of dirs) {
+            for (let step = 1; step <= maxRange; step++) {
+              const r = fromR + dr*step, c = fromC + dc*step;
+              if (!inBounds(r,c)) break;
+              if (isAlly(r,c)) break;
+              squares.push({r,c});
+              if (isEnemy(r,c)) break; // يأكل ويتوقف
+            }
+          }
+          break;
+        }
+        case 'king': {
+          for (let dr = -1; dr <= 1; dr++) {
+            for (let dc = -1; dc <= 1; dc++) {
+              if (dr === 0 && dc === 0) continue;
+              const r = fromR+dr, c = fromC+dc;
+              if (inBounds(r,c) && !isAlly(r,c)) squares.push({r,c});
+            }
+          }
+          break;
+        }
+      }
+      return squares;
+    }
+
+    // عربية لنمط الحركة
+    function movementLabel(m) {
+      const labels = {
+        pawn: 'مشاة', knight: 'حصان', bishop: 'فيل', rook: 'قلعة',
+        queen: 'ملكة', king: 'ملك', rook_2: 'قلعة قصيرة', queen_3: 'ملكة قصيرة'
+      };
+      return labels[m] || m;
+    }
+
+    // ════════════════════════════════════════════════════════════
+    // إعداد الديك للاعب — كل الكروت (20)
+    // ════════════════════════════════════════════════════════════
+    function buildDeck() {
+      // نسخة عشوائية من قائمة معرّفات الكروت
+      const ids = CARDS.map(c => c.id);
+      // Shuffle (Fisher–Yates)
+      for (let i = ids.length - 1; i > 0; i--) {
+        const j = Math.floor(Math.random() * (i + 1));
+        [ids[i], ids[j]] = [ids[j], ids[i]];
+      }
+      return ids;
+    }
+
+    // ════════════════════════════════════════════════════════════
+    // INITIAL GAME STATE
+    // ════════════════════════════════════════════════════════════
+    function makeInitialState() {
+      // اللوحة 8x8، كل خانة فيها {unit, trap}
+      const board = Array.from({ length: BOARD_SIZE }, () =>
+        Array.from({ length: BOARD_SIZE }, () => ({ unit: null, trap: null }))
+      );
+
+      // وضع ملوك اللاعبين
+      let unitIdCounter = 1;
+      board[0][KING_START_COL].unit = {
+        instanceId: `p1-king`,
+        cardId: 'king',
+        playerNum: 1,
+        isKing: true,
+        hp: KING_TEMPLATE.hp,
+        maxHp: KING_TEMPLATE.maxHp,
+        atk: KING_TEMPLATE.atk,
+        movement: KING_TEMPLATE.movement,
+        movedThisTurn: false,
+        summoningSickness: false,
+        snared: false
+      };
+      board[7][KING_START_COL].unit = {
+        instanceId: `p2-king`,
+        cardId: 'king',
+        playerNum: 2,
+        isKing: true,
+        hp: KING_TEMPLATE.hp,
+        maxHp: KING_TEMPLATE.maxHp,
+        atk: KING_TEMPLATE.atk,
+        movement: KING_TEMPLATE.movement,
+        movedThisTurn: false,
+        summoningSickness: false,
+        snared: false
+      };
+
+      const deck1 = buildDeck();
+      const deck2 = buildDeck();
+
+      const hand1 = deck1.splice(0, STARTING_HAND);
+      const hand2 = deck2.splice(0, STARTING_HAND);
+
+      return {
+        board,
+        turn: 1,
+        currentPlayer: 1,
+        players: {
+          1: { deck: deck1, hand: hand1, discard: [], mana: STARTING_MANA, maxMana: STARTING_MANA },
+          2: { deck: deck2, hand: hand2, discard: [], mana: STARTING_MANA, maxMana: STARTING_MANA }
+        },
+        // الاختيار الحالي
+        selected: null, // { kind: 'card'|'unit', value: ... }
+        // وضع لعب كارت يحتاج هدف
+        pendingPlay: null, // { cardId, mode: 'summon'|'trap'|'target_any_unit'|... }
+        winner: null,
+        log: [{ msg: 'بدأت المبارزة!', type: 'system' }],
+        bannerText: null,
+        instanceIdCounter: 1
+      };
+    }
+
+    // ════════════════════════════════════════════════════════════
+    // ACTION LOG HELPER
+    // ════════════════════════════════════════════════════════════
+    function pushLog(state, msg, type = 'system') {
+      state.log = [...state.log, { msg, type }];
+      if (state.log.length > 80) state.log = state.log.slice(-80);
+    }
+
+    // ════════════════════════════════════════════════════════════
+    // COMBAT — يحل صدام بين مهاجم ومدافع
+    // ════════════════════════════════════════════════════════════
+    function resolveCombat(state, fromR, fromC, toR, toC) {
+      const attacker = state.board[fromR][fromC].unit;
+      const defender = state.board[toR][toC].unit;
+      if (!attacker || !defender) return;
+
+      const aName = attacker.isKing ? 'الملك' : (CARD_BY_ID[attacker.cardId]?.name_ar || '?');
+      const dName = defender.isKing ? 'الملك' : (CARD_BY_ID[defender.cardId]?.name_ar || '?');
+
+      pushLog(state, `صدام: ${aName} (لاعب ${attacker.playerNum}) → ${dName} (لاعب ${defender.playerNum})`, 'combat');
+
+      // الضرر أولاً يوقعه المهاجم على المدافع
+      defender.hp -= attacker.atk;
+      pushLog(state, `${aName} ضرب ${dName} بـ ${attacker.atk} ضرر.`, 'combat');
+
+      // لو المدافع لسه عايش، يضرب المهاجم برضو
+      if (defender.hp > 0) {
+        attacker.hp -= defender.atk;
+        pushLog(state, `${dName} رد الضرب بـ ${defender.atk} ضرر.`, 'combat');
+      }
+
+      // فحص الفوز (ملك مات)
+      if (defender.hp <= 0 && defender.isKing) {
+        state.winner = attacker.playerNum;
+        state.bannerText = `اللاعب ${attacker.playerNum} فاز!`;
+      }
+      if (attacker.hp <= 0 && attacker.isKing) {
+        state.winner = defender.playerNum;
+        state.bannerText = `اللاعب ${defender.playerNum} فاز!`;
+      }
+
+      // معالجة موت الفينيكس (يرجع لليد بدل المقبرة)
+      function handleDeath(unit, r, c) {
+        if (unit.hp > 0) return false;
+        const card = CARD_BY_ID[unit.cardId];
+        if (card && card.ability === 'phoenix' && !unit.isKing) {
+          pushLog(state, `🔥 ${card.name_ar} يبعث من رماده ويعود إلى اليد!`, 'system');
+          state.players[unit.playerNum].hand.push(unit.cardId);
+        } else if (!unit.isKing) {
+          state.players[unit.playerNum].discard.push(unit.cardId);
+        }
+        state.board[r][c].unit = null;
+        return true;
+      }
+
+      handleDeath(defender, toR, toC);
+      // المهاجم يموت في مكانه (ميتحركش)
+      const attackerDied = handleDeath(attacker, fromR, fromC);
+
+      // لو المدافع مات والمهاجم لسه عايش، المهاجم يدخل الخانة
+      if (!state.board[toR][toC].unit && !attackerDied && state.board[fromR][fromC].unit === attacker) {
+        state.board[toR][toC].unit = attacker;
+        state.board[fromR][fromC].unit = null;
+        attacker.movedThisTurn = true;
+      }
+    }
+
+    // ════════════════════════════════════════════════════════════
+    // TRAP TRIGGER — لو وحش دخل خانة فيها فخ
+    // ════════════════════════════════════════════════════════════
+    function checkTrapTrigger(state, r, c) {
+      const cell = state.board[r][c];
+      if (!cell.trap || !cell.unit) return;
+      const trap = cell.trap;
+      const unit = cell.unit;
+      // الفخ ميتفعلش لو الواحد اللي دخل صاحبه
+      if (trap.playerNum === unit.playerNum) return;
+
+      const trapCard = CARD_BY_ID[trap.cardId];
+      pushLog(state, `💥 ${unit.isKing ? 'الملك' : CARD_BY_ID[unit.cardId].name_ar} وقع في فخ ${trapCard.name_ar}!`, 'combat');
+
+      const effect = trapCard.effect;
+      if (effect === 'destroy') {
+        // لو الملك، خسر اللاعب
+        if (unit.isKing) {
+          unit.hp = 0;
+          state.winner = trap.playerNum;
+          state.bannerText = `اللاعب ${trap.playerNum} فاز!`;
+        } else {
+          state.players[unit.playerNum].discard.push(unit.cardId);
+          cell.unit = null;
+        }
+      } else if (effect === 'snare') {
+        unit.snared = true;
+        pushLog(state, `${CARD_BY_ID[unit.cardId]?.name_ar || 'الملك'} مقيّد ولن يتحرك الدور التالي.`, 'system');
+      } else if (effect === 'bounce') {
+        if (!unit.isKing) {
+          state.players[unit.playerNum].hand.push(unit.cardId);
+          cell.unit = null;
+          pushLog(state, `الوحش انتقل عبر المرآة وعاد إلى يد صاحبه.`, 'system');
+        }
+      } else if (effect === 'explode') {
+        // ضرر للوحش اللي وقع + كل المجاورين
+        const targets = [{ r, c }];
+        for (let dr = -1; dr <= 1; dr++) {
+          for (let dc = -1; dc <= 1; dc++) {
+            if (dr === 0 && dc === 0) continue;
+            const nr = r + dr, nc = c + dc;
+            if (nr >= 0 && nr < BOARD_SIZE && nc >= 0 && nc < BOARD_SIZE && state.board[nr][nc].unit) {
+              targets.push({ r: nr, c: nc });
+            }
+          }
+        }
+        for (const { r: tr, c: tc } of targets) {
+          const u = state.board[tr][tc].unit;
+          if (!u) continue;
+          u.hp -= 3;
+          if (u.hp <= 0) {
+            if (u.isKing) {
+              state.winner = trap.playerNum;
+              state.bannerText = `اللاعب ${trap.playerNum} فاز!`;
+            } else {
+              const card = CARD_BY_ID[u.cardId];
+              if (card?.ability === 'phoenix') {
+                state.players[u.playerNum].hand.push(u.cardId);
+              } else {
+                state.players[u.playerNum].discard.push(u.cardId);
+              }
+              state.board[tr][tc].unit = null;
+            }
+          }
+        }
+      }
+      // الفخ يتم استهلاكه
+      state.players[trap.playerNum].discard.push(trap.cardId);
+      cell.trap = null;
+    }
+
+    // ════════════════════════════════════════════════════════════
+    // SUMMONING — استدعاء وحش من اليد إلى الرقعة
+    // ════════════════════════════════════════════════════════════
+    function summonUnit(state, cardId, r, c) {
+      const card = CARD_BY_ID[cardId];
+      const playerNum = state.currentPlayer;
+      const player = state.players[playerNum];
+
+      // مراجعات: المانا، الخانة فاضية، خانة الصف الخلفي للاعب
+      if (player.mana < card.cost) return false;
+      if (state.board[r][c].unit) return false;
+      const backRow = playerNum === 1 ? 0 : 7;
+      if (r !== backRow) return false;
+      // شيل الكارت من اليد
+      const idx = player.hand.indexOf(cardId);
+      if (idx < 0) return false;
+      player.hand.splice(idx, 1);
+      // اخصم المانا
+      player.mana -= card.cost;
+      // ضع الوحش
+      state.board[r][c].unit = {
+        instanceId: `u${state.instanceIdCounter++}`,
+        cardId,
+        playerNum,
+        isKing: false,
+        hp: card.hp,
+        maxHp: card.hp,
+        atk: card.atk,
+        movement: card.movement,
+        movedThisTurn: false,
+        summoningSickness: true,
+        snared: false
+      };
+      pushLog(state, `استدعاء: ${card.name_ar} في ${colName(c)}${r+1}`, 'summon');
+      return true;
+    }
+
+    function colName(c) {
+      return String.fromCharCode(65 + c); // A..H
+    }
+
+    // ════════════════════════════════════════════════════════════
+    // TRAP PLACEMENT
+    // ════════════════════════════════════════════════════════════
+    function placeTrap(state, cardId, r, c) {
+      const card = CARD_BY_ID[cardId];
+      const playerNum = state.currentPlayer;
+      const player = state.players[playerNum];
+      if (player.mana < card.cost) return false;
+      // ممكن تتحط على خانة في نصف اللاعب فقط، وتكون فاضية (ولا فيها فخ تاني)
+      if (state.board[r][c].unit || state.board[r][c].trap) return false;
+      const inOwnHalf = playerNum === 1 ? r <= 3 : r >= 4;
+      if (!inOwnHalf) return false;
+      const idx = player.hand.indexOf(cardId);
+      if (idx < 0) return false;
+      player.hand.splice(idx, 1);
+      player.mana -= card.cost;
+      state.board[r][c].trap = { cardId, playerNum };
+      pushLog(state, `وُضع فخ خفي في ${colName(c)}${r+1}.`, 'p' + playerNum);
+      return true;
+    }
+
+    // ════════════════════════════════════════════════════════════
+    // SPELL EXECUTION
+    // ════════════════════════════════════════════════════════════
+    function castSpell(state, cardId, targetR, targetC, extra) {
+      const card = CARD_BY_ID[cardId];
+      const playerNum = state.currentPlayer;
+      const player = state.players[playerNum];
+      if (player.mana < card.cost) return false;
+      const idx = player.hand.indexOf(cardId);
+      if (idx < 0) return false;
+
+      // التنفيذ حسب نوع السحر
+      if (cardId === 's01') {
+        // Fireball — أي وحش
+        if (targetR === undefined || !state.board[targetR][targetC].unit) return false;
+        const u = state.board[targetR][targetC].unit;
+        u.hp -= 4;
+        pushLog(state, `🔥 كرة النار تصيب ${u.isKing ? 'الملك' : CARD_BY_ID[u.cardId].name_ar} بـ 4 ضرر!`, 'combat');
+        if (u.hp <= 0) {
+          if (u.isKing) {
+            state.winner = playerNum;
+            state.bannerText = `اللاعب ${playerNum} فاز!`;
+          } else {
+            const cardOfU = CARD_BY_ID[u.cardId];
+            if (cardOfU?.ability === 'phoenix') state.players[u.playerNum].hand.push(u.cardId);
+            else state.players[u.playerNum].discard.push(u.cardId);
+            state.board[targetR][targetC].unit = null;
+          }
+        }
+      } else if (cardId === 's02') {
+        // Healing Light — وحش بتاعك
+        if (targetR === undefined || !state.board[targetR][targetC].unit) return false;
+        const u = state.board[targetR][targetC].unit;
+        if (u.playerNum !== playerNum) return false;
+        u.hp = u.maxHp;
+        pushLog(state, `✨ نور الشفاء يستعيد ${u.isKing ? 'الملك' : CARD_BY_ID[u.cardId].name_ar} لكامل صحته.`, 'p' + playerNum);
+      } else if (cardId === 's03') {
+        // Teleport — نقل وحش بتاعك لخانة فاضية في نصفك
+        if (!extra) return false;
+        const { fromR, fromC, toR, toC } = extra;
+        const u = state.board[fromR][fromC].unit;
+        if (!u || u.playerNum !== playerNum) return false;
+        if (state.board[toR][toC].unit) return false;
+        const inOwnHalf = playerNum === 1 ? toR <= 3 : toR >= 4;
+        if (!inOwnHalf) return false;
+        state.board[toR][toC].unit = u;
+        state.board[fromR][fromC].unit = null;
+        pushLog(state, `🌀 ${u.isKing ? 'الملك' : CARD_BY_ID[u.cardId].name_ar} انتقل إلى ${colName(toC)}${toR+1}.`, 'p' + playerNum);
+        // فحص الفخ في الوجهة
+        checkTrapTrigger(state, toR, toC);
+      } else if (cardId === 's04') {
+        // Reinforcements — اسحب كرتين
+        for (let i = 0; i < 2; i++) {
+          if (player.deck.length > 0 && player.hand.length < MAX_HAND) {
+            player.hand.push(player.deck.shift());
+          }
+        }
+        pushLog(state, `📜 سحب اللاعب ${playerNum} كرتين.`, 'p' + playerNum);
+      }
+
+      // شيل الكارت بعد التنفيذ الناجح
+      player.hand.splice(idx, 1);
+      player.mana -= card.cost;
+      player.discard.push(cardId);
+      return true;
+    }
+
+    // ════════════════════════════════════════════════════════════
+    // إنهاء الدور
+    // ════════════════════════════════════════════════════════════
+    function endTurn(state) {
+      // إلغاء "مرض الاستدعاء" والقيد لكل وحوش اللاعب اللي خلص
+      const ending = state.currentPlayer;
+      for (let r = 0; r < BOARD_SIZE; r++) {
+        for (let c = 0; c < BOARD_SIZE; c++) {
+          const u = state.board[r][c].unit;
+          if (!u) continue;
+          if (u.playerNum === ending) {
+            u.movedThisTurn = false;
+          }
+        }
+      }
+      // الدور للاعب الجاي
+      state.currentPlayer = ending === 1 ? 2 : 1;
+      const newPlayerNum = state.currentPlayer;
+      // إلغاء مرض الاستدعاء والقيد لوحوش اللاعب الجاي اللي بقالها دور
+      for (let r = 0; r < BOARD_SIZE; r++) {
+        for (let c = 0; c < BOARD_SIZE; c++) {
+          const u = state.board[r][c].unit;
+          if (!u) continue;
+          if (u.playerNum === newPlayerNum) {
+            u.summoningSickness = false;
+            u.snared = false; // القيد ينتهي عند بداية دورك الجديد
+          }
+        }
+      }
+      // لو رجعنا للاعب 1 = دور جديد كامل
+      if (newPlayerNum === 1) state.turn += 1;
+      // زيادة المانا
+      const np = state.players[newPlayerNum];
+      np.maxMana = Math.min(MAX_MANA, np.maxMana + 1);
+      np.mana = np.maxMana;
+      // سحب كارت
+      if (np.deck.length > 0 && np.hand.length < MAX_HAND) {
+        np.hand.push(np.deck.shift());
+      }
+      pushLog(state, `── دور اللاعب ${newPlayerNum} ──`, 'p' + newPlayerNum);
+      state.bannerText = `دور اللاعب ${newPlayerNum}`;
+      // إلغاء الاختيار
+      state.selected = null;
+      state.pendingPlay = null;
+    }
+
+    // ════════════════════════════════════════════════════════════
+    // REDUCER
+    // ════════════════════════════════════════════════════════════
+    function deepCloneState(s) {
+      // كلونينج عميق آمن للحالة (الكائنات بسيطة، JSON.parse/stringify يكفي)
+      return JSON.parse(JSON.stringify(s));
+    }
+
+    function gameReducer(state, action) {
+      if (state.winner) return state;
+      const s = deepCloneState(state);
+      s.bannerText = null; // مسح اللافتة من الدور السابق
+
+      switch (action.type) {
+        case 'NEW_GAME':
+          return makeInitialState();
+
+        case 'SELECT_CARD': {
+          // لاعب اختار كارت من إيده
+          const { cardId } = action;
+          const card = CARD_BY_ID[cardId];
+          if (!card) return state;
+          const player = s.players[s.currentPlayer];
+          if (!player.hand.includes(cardId)) return state;
+          if (player.mana < card.cost) {
+            pushLog(s, `مانا غير كافية لـ ${card.name_ar}.`, 'system');
+            return s;
+          }
+          // ابدأ سياق اللعب حسب نوع الكارت
+          if (card.type === 'unit') {
+            s.selected = null;
+            s.pendingPlay = { cardId, mode: 'summon' };
+          } else if (card.type === 'trap') {
+            s.selected = null;
+            s.pendingPlay = { cardId, mode: 'trap' };
+          } else if (card.type === 'spell') {
+            // لو السحر مايحتاجش هدف، نفذه فوراً
+            if (card.target === 'self') {
+              castSpell(s, cardId);
+              s.pendingPlay = null;
+              s.selected = null;
+            } else {
+              s.selected = null;
+              s.pendingPlay = { cardId, mode: 'spell', spellTarget: card.target, step: 1 };
+            }
+          }
+          return s;
+        }
+
+        case 'CLICK_CELL': {
+          const { r, c } = action;
+          // 1) لو في كارت معلّق ينتظر هدف
+          if (s.pendingPlay) {
+            const pp = s.pendingPlay;
+            const card = CARD_BY_ID[pp.cardId];
+
+            if (pp.mode === 'summon') {
+              const ok = summonUnit(s, pp.cardId, r, c);
+              if (ok) {
+                s.pendingPlay = null;
+                // فحص الفخ (مش هيتفعل لأن الاستدعاء على نص اللاعب نفسه)
+                checkTrapTrigger(s, r, c);
+              }
+              return s;
+            }
+            if (pp.mode === 'trap') {
+              const ok = placeTrap(s, pp.cardId, r, c);
+              if (ok) s.pendingPlay = null;
+              return s;
+            }
+            if (pp.mode === 'spell') {
+              // حسب نوع الهدف
+              if (pp.spellTarget === 'any_unit') {
+                if (s.board[r][c].unit) {
+                  castSpell(s, pp.cardId, r, c);
+                  s.pendingPlay = null;
+                }
+                return s;
+              }
+              if (pp.spellTarget === 'own_unit') {
+                if (s.board[r][c].unit && s.board[r][c].unit.playerNum === s.currentPlayer) {
+                  castSpell(s, pp.cardId, r, c);
+                  s.pendingPlay = null;
+                }
+                return s;
+              }
+              if (pp.spellTarget === 'own_unit_then_empty') {
+                // خطوتين: اختار وحشك، بعدين الخانة الفاضية
+                if (pp.step === 1) {
+                  if (s.board[r][c].unit && s.board[r][c].unit.playerNum === s.currentPlayer) {
+                    s.pendingPlay = { ...pp, step: 2, sourceR: r, sourceC: c };
+                  }
+                  return s;
+                }
+                if (pp.step === 2) {
+                  castSpell(s, pp.cardId, undefined, undefined, {
+                    fromR: pp.sourceR, fromC: pp.sourceC, toR: r, toC: c
+                  });
+                  s.pendingPlay = null;
+                  return s;
+                }
+              }
+              return s;
+            }
+          }
+
+          // 2) لو في وحش مختار - حركة/هجوم
+          if (s.selected && s.selected.kind === 'unit') {
+            const { r: sr, c: sc } = s.selected.value;
+            const unit = s.board[sr][sc].unit;
+            if (!unit || unit.playerNum !== s.currentPlayer) {
+              s.selected = null;
+              return s;
+            }
+            // الحركات المسموح بها
+            const valid = (unit.summoningSickness || unit.movedThisTurn || unit.snared)
+              ? []
+              : getMovementSquares(unit, sr, sc, s.board, s.currentPlayer);
+            const target = valid.find(v => v.r === r && v.c === c);
+            if (!target) {
+              // لو ضغط على وحش بتاعه يتنقل الاختيار
+              if (s.board[r][c].unit && s.board[r][c].unit.playerNum === s.currentPlayer) {
+                s.selected = { kind: 'unit', value: { r, c } };
+                return s;
+              }
+              s.selected = null;
+              return s;
+            }
+            // لو فيه عدو في الوجهة، صدام
+            const dest = s.board[r][c];
+            if (dest.unit) {
+              resolveCombat(s, sr, sc, r, c);
+              s.selected = null;
+              // الفخ بعد الصدام (لو المهاجم انتقل ووقع في فخ)
+              if (s.board[r][c].unit && !s.winner) checkTrapTrigger(s, r, c);
+              return s;
+            } else {
+              // حركة لخانة فاضية
+              s.board[r][c].unit = unit;
+              s.board[sr][sc].unit = null;
+              unit.movedThisTurn = true;
+              s.selected = null;
+              // افحص الفخ في الخانة الجديدة
+              checkTrapTrigger(s, r, c);
+              return s;
+            }
+          }
+
+          // 3) فضّل اختيار وحشك في الخانة دي
+          const cell = s.board[r][c];
+          if (cell.unit && cell.unit.playerNum === s.currentPlayer) {
+            s.selected = { kind: 'unit', value: { r, c } };
+            return s;
+          }
+          // غير كده، فك الاختيار
+          s.selected = null;
+          return s;
+        }
+
+        case 'CANCEL_PLAY':
+          s.pendingPlay = null;
+          s.selected = null;
+          return s;
+
+        case 'END_TURN':
+          endTurn(s);
+          return s;
+      }
+      return state;
+    }
+
+    // ════════════════════════════════════════════════════════════
+    // الخانات المضاءة بناء على حالة اللعب
+    // ════════════════════════════════════════════════════════════
+    function computeHighlights(state) {
+      const highlights = {}; // "r,c" -> 'valid-move'|'valid-attack'|'valid-summon'|'valid-target'
+      const player = state.currentPlayer;
+
+      if (state.pendingPlay) {
+        const pp = state.pendingPlay;
+        const card = CARD_BY_ID[pp.cardId];
+        if (pp.mode === 'summon') {
+          const backRow = player === 1 ? 0 : 7;
+          for (let c = 0; c < BOARD_SIZE; c++) {
+            if (!state.board[backRow][c].unit) {
+              highlights[`${backRow},${c}`] = 'valid-summon';
+            }
+          }
+        } else if (pp.mode === 'trap') {
+          const rows = player === 1 ? [0,1,2,3] : [4,5,6,7];
+          for (const r of rows) {
+            for (let c = 0; c < BOARD_SIZE; c++) {
+              if (!state.board[r][c].unit && !state.board[r][c].trap) {
+                highlights[`${r},${c}`] = 'valid-target';
+              }
+            }
+          }
+        } else if (pp.mode === 'spell') {
+          if (pp.spellTarget === 'any_unit') {
+            for (let r = 0; r < BOARD_SIZE; r++)
+              for (let c = 0; c < BOARD_SIZE; c++)
+                if (state.board[r][c].unit) highlights[`${r},${c}`] = 'valid-target';
+          } else if (pp.spellTarget === 'own_unit') {
+            for (let r = 0; r < BOARD_SIZE; r++)
+              for (let c = 0; c < BOARD_SIZE; c++)
+                if (state.board[r][c].unit && state.board[r][c].unit.playerNum === player)
+                  highlights[`${r},${c}`] = 'valid-target';
+          } else if (pp.spellTarget === 'own_unit_then_empty') {
+            if (pp.step === 1) {
+              for (let r = 0; r < BOARD_SIZE; r++)
+                for (let c = 0; c < BOARD_SIZE; c++)
+                  if (state.board[r][c].unit && state.board[r][c].unit.playerNum === player)
+                    highlights[`${r},${c}`] = 'valid-target';
+            } else if (pp.step === 2) {
+              const rows = player === 1 ? [0,1,2,3] : [4,5,6,7];
+              for (const r of rows)
+                for (let c = 0; c < BOARD_SIZE; c++)
+                  if (!state.board[r][c].unit) highlights[`${r},${c}`] = 'valid-target';
+            }
+          }
+        }
+      } else if (state.selected && state.selected.kind === 'unit') {
+        const { r, c } = state.selected.value;
+        const unit = state.board[r][c].unit;
+        if (unit && unit.playerNum === player) {
+          highlights[`${r},${c}`] = 'selected';
+          if (!unit.summoningSickness && !unit.movedThisTurn && !unit.snared) {
+            const moves = getMovementSquares(unit, r, c, state.board, player);
+            for (const m of moves) {
+              const dest = state.board[m.r][m.c];
+              if (dest.unit) highlights[`${m.r},${m.c}`] = 'valid-attack';
+              else highlights[`${m.r},${m.c}`] = 'valid-move';
+            }
+          }
+        }
+      }
+      return highlights;
+    }
+
+    // ════════════════════════════════════════════════════════════
+    // مكوّن: الكارت
+    // ════════════════════════════════════════════════════════════
+    function CardView({ card, selected, affordable, onClick }) {
+      const typeClass = card.type;
+      return (
+        <div
+          className={`card ${typeClass} ${selected ? 'selected' : ''} ${!affordable ? 'unaffordable' : ''}`}
+          onClick={onClick}
+        >
+          <div className="card-header">
+            <div className="card-cost">{card.cost}</div>
+            <div className="card-name">{card.name_ar}</div>
+          </div>
+          <div className="card-image">
+            {card.image ? (
+              <img src={card.image} alt={card.name_ar} />
+            ) : (
+              <div className="card-image-placeholder">
+                <div style={{ fontSize: '2.2rem' }}>{card.icon}</div>
+                <div style={{ marginTop: '4px' }}>{card.name_en}</div>
+              </div>
+            )}
+            <div className="card-type-badge">
+              {card.type === 'unit' ? 'وحش' : card.type === 'spell' ? 'سحر' : 'فخ'}
+            </div>
+          </div>
+          {card.type === 'unit' && (
+            <>
+              <div className="card-stats-row">
+                <div className="card-stat stat-atk">⚔ {card.atk}</div>
+                <div className="card-stat stat-hp">♥ {card.hp}</div>
+              </div>
+              <div className="card-move">{movementLabel(card.movement)}</div>
+            </>
+          )}
+          <div className="card-desc">{card.desc_ar}</div>
+        </div>
+      );
+    }
+
+    // ════════════════════════════════════════════════════════════
+    // مكوّن: الخانة على الرقعة
+    // ════════════════════════════════════════════════════════════
+    function BoardCell({ r, c, cell, highlight, onClick, isLight, currentPlayer }) {
+      const u = cell.unit;
+      const trap = cell.trap;
+      const card = u && !u.isKing ? CARD_BY_ID[u.cardId] : null;
+
+      let className = `board-cell ${isLight ? 'light' : 'dark'}`;
+      if (highlight) className += ` ${highlight}`;
+
+      return (
+        <div className={className} onClick={() => onClick(r, c)}>
+          {/* coordinate labels في الزوايا */}
+          {c === 0 && <div className="coord-label row">{r+1}</div>}
+          {r === 0 && <div className="coord-label col">{colName(c)}</div>}
+
+          {/* فخ */}
+          {trap && (
+            <div className="trap-marker" title={trap.playerNum === currentPlayer ? CARD_BY_ID[trap.cardId].name_ar : 'فخ خفي'}>
+              {trap.playerNum === currentPlayer ? '◆' : '?'}
+            </div>
+          )}
+
+          {/* وحش */}
+          {u && (
+            <div className={`piece p${u.playerNum} ${u.isKing ? 'king' : ''} ${u.summoningSickness || u.snared ? 'sick' : ''}`}>
+              <div className="piece-name">
+                {u.isKing ? '👑' : (card?.icon || '?')}
+                <div style={{ fontSize: '0.5rem', marginTop: '2px' }}>
+                  {u.isKing ? 'الملك' : card?.name_ar}
+                </div>
+              </div>
+              <div className="piece-stats">
+                <span className="stat-atk">⚔{u.atk}</span>
+                <span className="stat-hp">♥{u.hp}</span>
+              </div>
+            </div>
+          )}
+        </div>
+      );
+    }
+
+    // ════════════════════════════════════════════════════════════
+    // مكوّن: لوحة المعلومات للاعب (مانا، إيد...)
+    // ════════════════════════════════════════════════════════════
+    function PlayerPanel({ playerNum, player, isCurrent, viewMode, kingHp, kingMaxHp }) {
+      // viewMode: 'full' = أشوف إيدي / 'hidden' = إيد الخصم مخفية
+      return (
+        <div className={`p-3 rounded border ${isCurrent ? 'border-yellow-500 bg-amber-950/30' : 'border-gray-700 bg-gray-900/40'}`}>
+          <div className="flex items-center justify-between mb-2">
+            <div className="font-display text-lg" style={{ color: playerNum === 1 ? '#d4a04a' : '#a0b8ff' }}>
+              ⚜ اللاعب {playerNum}
+            </div>
+            {isCurrent && <span className="font-display text-xs text-yellow-300">— دوره الآن —</span>}
+          </div>
+          {/* مانا */}
+          <div className="flex items-center gap-1 mb-2 flex-wrap">
+            <span className="font-display text-xs text-gray-400 ml-2">المانا:</span>
+            {Array.from({ length: Math.max(player.maxMana, 1) }).map((_, i) => (
+              <div key={i} className={`mana-orb ${i < player.mana ? 'full' : 'empty'}`}>
+                {i < player.mana ? '◆' : ''}
+              </div>
+            ))}
+            <span className="font-mono text-xs text-gray-400 mr-2">{player.mana}/{player.maxMana}</span>
+          </div>
+          {/* صحة الملك */}
+          <div className="flex items-center gap-2 mb-2">
+            <span className="font-display text-xs text-gray-400">👑 الملك:</span>
+            <div className="flex-1 hp-bar">
+              <div className="hp-bar-fill" style={{ width: `${(kingHp / kingMaxHp) * 100}%` }}></div>
+            </div>
+            <span className="font-mono text-xs">{kingHp}/{kingMaxHp}</span>
+          </div>
+          {/* عداد الديك والمقبرة */}
+          <div className="flex justify-between text-xs font-mono text-gray-400">
+            <span>📚 ديك: {player.deck.length}</span>
+            <span>🗂️ مقبرة: {player.discard.length}</span>
+            <span>✋ يد: {player.hand.length}</span>
+          </div>
+        </div>
+      );
+    }
+
+    // ════════════════════════════════════════════════════════════
+    // المكوّن الرئيسي — Shell يحمّل البيانات أولاً ثم يعرض اللعبة
+    // ════════════════════════════════════════════════════════════
+    function App() {
+      const [loadState, setLoadState] = useState('loading'); // loading | ready | offline
+      const [loadMsg, setLoadMsg] = useState('جاري تحميل بيانات اللعبة من السيرفر...');
+
+      useEffect(() => {
+        let alive = true;
+        (async () => {
+          const res = await loadFromSupabase();
+          if (!alive) return;
+          if (res.ok) {
+            setLoadState('ready');
+          } else {
+            setLoadMsg('تعذّر الاتصال بالسيرفر، سيتم استعمال البيانات الافتراضية.');
+            setLoadState('offline');
+            setTimeout(() => alive && setLoadState('ready'), 1500);
+          }
+        })();
+        return () => { alive = false; };
+      }, []);
+
+      if (loadState !== 'ready') {
+        return (
+          <div className="min-h-screen flex items-center justify-center">
+            <div className="text-center">
+              <div className="font-display text-3xl text-yellow-400 mb-4">⚜</div>
+              <div className="font-display text-xl text-yellow-300 mb-2">Duelist's Gambit</div>
+              <div className="font-body text-base text-gray-400">{loadMsg}</div>
+              <div className="mt-4 inline-block animate-spin" style={{ animationDuration: '2s' }}>⚜</div>
+            </div>
+          </div>
+        );
+      }
+
+      return <Game />;
+    }
+
+    function Game() {
+      const [state, dispatch] = useReducer(gameReducer, undefined, makeInitialState);
+      const [showRules, setShowRules] = useState(false);
+      const [showPassScreen, setShowPassScreen] = useState(false);
+      const [previousPlayer, setPreviousPlayer] = useState(1);
+      const logRef = useRef(null);
+
+      // عند تغيير الدور، اعرض شاشة "سلّم الجهاز"
+      useEffect(() => {
+        if (state.currentPlayer !== previousPlayer && !state.winner) {
+          setShowPassScreen(true);
+          setPreviousPlayer(state.currentPlayer);
+        }
+      }, [state.currentPlayer, state.winner]);
+
+      // تمرير السجل لآخر سطر
+      useEffect(() => {
+        if (logRef.current) logRef.current.scrollTop = logRef.current.scrollHeight;
+      }, [state.log.length]);
+
+      // عند ظهور لافتة
+      const [showBanner, setShowBanner] = useState(null);
+      useEffect(() => {
+        if (state.bannerText) {
+          setShowBanner(state.bannerText);
+          const t = setTimeout(() => setShowBanner(null), 1800);
+          return () => clearTimeout(t);
+        }
+      }, [state.bannerText]);
+
+      const highlights = useMemo(() => computeHighlights(state), [state]);
+      const currentPlayerData = state.players[state.currentPlayer];
+      const otherPlayerNum = state.currentPlayer === 1 ? 2 : 1;
+
+      // إيجاد ملوك الاعبين على الرقعة (لعرض الصحة)
+      function findKing(num) {
+        for (let r = 0; r < BOARD_SIZE; r++)
+          for (let c = 0; c < BOARD_SIZE; c++) {
+            const u = state.board[r][c].unit;
+            if (u && u.isKing && u.playerNum === num) return u;
+          }
+        return null;
+      }
+      const king1 = findKing(1);
+      const king2 = findKing(2);
+
+      // الفائز
+      if (state.winner) {
+        return (
+          <div className="modal-backdrop">
+            <div className="modal text-center">
+              <div className="font-display text-4xl text-yellow-400 mb-4">⚜ النصر ⚜</div>
+              <div className="font-display text-2xl mb-6" style={{ color: state.winner === 1 ? '#d4a04a' : '#a0b8ff' }}>
+                اللاعب {state.winner} انتصر!
+              </div>
+              <div className="ornament-line mb-6"><span>⚔</span></div>
+              <p className="font-body text-lg mb-6 text-gray-300">
+                سقط ملك الخصم. تشرّفت المملكة بهذا النصر العظيم.
+              </p>
+              <button className="btn" onClick={() => dispatch({ type: 'NEW_GAME' })}>
+                مبارزة جديدة
+              </button>
+            </div>
+          </div>
+        );
+      }
+
+      return (
+        <div className="min-h-screen flex flex-col">
+          {/* لافتة الدور */}
+          {showBanner && <div className="phase-banner">{showBanner}</div>}
+
+          {/* شاشة "سلّم الجهاز" */}
+          {showPassScreen && (
+            <div className="modal-backdrop">
+              <div className="modal text-center">
+                <div className="font-display text-3xl text-yellow-400 mb-4">📜</div>
+                <div className="font-display text-2xl mb-4" style={{ color: state.currentPlayer === 1 ? '#d4a04a' : '#a0b8ff' }}>
+                  دور اللاعب {state.currentPlayer}
+                </div>
+                <p className="font-body text-lg mb-6 text-gray-300">
+                  سلّم الجهاز للاعب {state.currentPlayer}. عندما يكون مستعداً، اضغط الزر.
+                </p>
+                <button className="btn" onClick={() => setShowPassScreen(false)}>
+                  أنا مستعد ⚔
+                </button>
+              </div>
+            </div>
+          )}
+
+          {/* شاشة القواعد */}
+          {showRules && (
+            <div className="modal-backdrop" onClick={() => setShowRules(false)}>
+              <div className="modal" onClick={e => e.stopPropagation()}>
+                <h2 className="font-display text-2xl text-yellow-400 mb-4">⚜ قواعد اللعبة ⚜</h2>
+                <div className="font-body text-base space-y-3 text-gray-200">
+                  <p><b className="text-yellow-300">الهدف:</b> اقتل ملك الخصم (HP = 0).</p>
+                  <p><b className="text-yellow-300">المانا:</b> تبدأ بـ 1 وتزيد 1 كل دور حتى 10. تُستهلك في لعب الكروت.</p>
+                  <p><b className="text-yellow-300">الاستدعاء:</b> ضع وحوشك في صفك الخلفي فقط (الصف 1 للاعب 1، الصف 8 للاعب 2).</p>
+                  <p><b className="text-yellow-300">مرض الاستدعاء:</b> الوحش المستدعى للتو لا يقدر على التحرك في نفس الدور.</p>
+                  <p><b className="text-yellow-300">الحركة:</b> اضغط وحشك ثم اضغط خانة مضاءة. كل وحش يتحرك مرة واحدة في الدور.</p>
+                  <p><b className="text-yellow-300">القتال:</b> الدخول على وحش عدو = صدام. كلاهما يأخذ ضرراً بمقدار قوة الآخر. لو نجا المهاجم وحده، يحتل الخانة.</p>
+                  <p><b className="text-yellow-300">الفخاخ:</b> توضع مقلوبة في نصفك. تنطلق تلقائياً عند دخول وحش العدو.</p>
+                  <p><b className="text-yellow-300">السحر:</b> يُلعَب مرة واحدة بأثر فوري ثم يدخل المقبرة.</p>
+                  <p><b className="text-yellow-300">السحب:</b> تسحب كرتاً واحداً في بداية كل دور (الحد الأقصى لليد: 8).</p>
+                </div>
+                <button className="btn mt-6" onClick={() => setShowRules(false)}>إغلاق</button>
+              </div>
+            </div>
+          )}
+
+          {/* الهيدر */}
+          <header className="px-6 py-3 border-b border-yellow-900/40 bg-black/40">
+            <div className="flex items-center justify-between gap-4 flex-wrap">
+              <h1 className="font-display text-2xl text-yellow-400 tracking-wider">
+                ⚜ Duelist's Gambit ⚜
+              </h1>
+              <div className="flex items-center gap-3">
+                <span className="font-display text-sm text-gray-400">الدور {state.turn}</span>
+                <a href="admin.html" className="btn" style={{ padding: '0.4rem 0.9rem', fontSize: '0.75rem', textDecoration: 'none' }}>
+                  ⚙ لوحة التحكم
+                </a>
+                <button className="btn" style={{ padding: '0.4rem 0.9rem', fontSize: '0.75rem' }} onClick={() => setShowRules(true)}>
+                  📜 القواعد
+                </button>
+                <button className="btn btn-crimson" style={{ padding: '0.4rem 0.9rem', fontSize: '0.75rem' }} onClick={() => {
+                  if (confirm('هل أنت متأكد من إنهاء المبارزة وبدء جديدة؟')) dispatch({ type: 'NEW_GAME' });
+                }}>
+                  ⟲ إعادة
+                </button>
+              </div>
+            </div>
+          </header>
+
+          {/* الجسم الرئيسي */}
+          <main className="flex-1 flex flex-col lg:flex-row gap-4 p-4">
+
+            {/* العمود الأيمن: معلومات الخصم + الرقعة + معلومات اللاعب */}
+            <div className="flex-1 flex flex-col gap-3 items-center">
+              {/* بانل الخصم */}
+              <div className="w-full max-w-3xl">
+                <PlayerPanel
+                  playerNum={otherPlayerNum}
+                  player={state.players[otherPlayerNum]}
+                  isCurrent={false}
+                  viewMode="hidden"
+                  kingHp={otherPlayerNum === 1 ? (king1?.hp ?? 0) : (king2?.hp ?? 0)}
+                  kingMaxHp={KING_TEMPLATE.maxHp}
+                />
+                {/* ظهر كروت الخصم (مقلوبة) */}
+                <div className="flex gap-1 justify-center mt-2 flex-wrap">
+                  {state.players[otherPlayerNum].hand.map((_, i) => (
+                    CARD_BACK_IMAGE ? (
+                      <div key={i} style={{ width: '40px', height: '58px', borderRadius: '4px', overflow: 'hidden', border: '1.5px solid var(--gold-dim)', boxShadow: '0 3px 8px rgba(0,0,0,0.5)' }}>
+                        <img src={CARD_BACK_IMAGE} alt="card back" style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
+                      </div>
+                    ) : (
+                      <div key={i} className="card-back" style={{ width: '40px', minHeight: '58px', fontSize: '0.9rem' }}>⚜</div>
+                    )
+                  ))}
+                </div>
+              </div>
+
+              {/* الرقعة */}
+              <div className="relative" style={{ maxWidth: 'min(85vh, 100%)' }}>
+                <div className="grid grid-cols-8 gap-0 border-4 border-yellow-700 bg-black"
+                     style={{ width: 'min(85vh, 95vw)', aspectRatio: '1', boxShadow: '0 0 40px rgba(201,169,97,0.2)' }}>
+                  {/* عرض الرقعة من فوق لتحت (الصف 7 فوق للاعب 2، الصف 0 تحت للاعب 1) */}
+                  {/* لكن اللاعب الحالي يفترض إنه شايف صفه تحت، فنخلي العرض بالنسبة للاعب 1 دايماً */}
+                  {Array.from({ length: BOARD_SIZE }).map((_, displayRow) => {
+                    // عشان اللاعب 1 يشوف نفسه تحت، نقلب الترتيب الرسومي
+                    const actualR = BOARD_SIZE - 1 - displayRow;
+                    return Array.from({ length: BOARD_SIZE }).map((_, c) => {
+                      const cell = state.board[actualR][c];
+                      const hl = highlights[`${actualR},${c}`];
+                      const isLight = (actualR + c) % 2 === 0;
+                      return (
+                        <BoardCell
+                          key={`${actualR}-${c}`}
+                          r={actualR}
+                          c={c}
+                          cell={cell}
+                          highlight={hl}
+                          isLight={isLight}
+                          currentPlayer={state.currentPlayer}
+                          onClick={(r, c) => dispatch({ type: 'CLICK_CELL', r, c })}
+                        />
+                      );
+                    });
+                  })}
+                </div>
+              </div>
+
+              {/* بانل اللاعب الحالي */}
+              <div className="w-full max-w-3xl">
+                <PlayerPanel
+                  playerNum={state.currentPlayer}
+                  player={currentPlayerData}
+                  isCurrent={true}
+                  viewMode="full"
+                  kingHp={state.currentPlayer === 1 ? (king1?.hp ?? 0) : (king2?.hp ?? 0)}
+                  kingMaxHp={KING_TEMPLATE.maxHp}
+                />
+              </div>
+
+              {/* يد اللاعب الحالي */}
+              <div className="w-full">
+                {state.pendingPlay && (
+                  <div className="flex justify-center mb-2">
+                    <div className="px-3 py-1 bg-yellow-900/40 border border-yellow-700 rounded font-display text-sm text-yellow-300">
+                      {state.pendingPlay.mode === 'summon' && '👉 اختر خانة في صفك الخلفي لاستدعاء الوحش'}
+                      {state.pendingPlay.mode === 'trap' && '👉 اختر خانة فاضية في نصفك لوضع الفخ'}
+                      {state.pendingPlay.mode === 'spell' && state.pendingPlay.spellTarget === 'any_unit' && '👉 اختر وحشاً لتوجيه السحر إليه'}
+                      {state.pendingPlay.mode === 'spell' && state.pendingPlay.spellTarget === 'own_unit' && '👉 اختر أحد وحوشك'}
+                      {state.pendingPlay.mode === 'spell' && state.pendingPlay.spellTarget === 'own_unit_then_empty' && state.pendingPlay.step === 1 && '👉 اختر الوحش الذي تريد نقله'}
+                      {state.pendingPlay.mode === 'spell' && state.pendingPlay.spellTarget === 'own_unit_then_empty' && state.pendingPlay.step === 2 && '👉 اختر الخانة الفارغة في نصفك'}
+                      <button className="mr-3 underline" onClick={() => dispatch({ type: 'CANCEL_PLAY' })}>إلغاء</button>
+                    </div>
+                  </div>
+                )}
+                <div className="flex gap-2 overflow-x-auto py-3 px-2 justify-center flex-wrap">
+                  {currentPlayerData.hand.map((cardId, idx) => {
+                    const card = CARD_BY_ID[cardId];
+                    const affordable = currentPlayerData.mana >= card.cost;
+                    const selected = state.pendingPlay && state.pendingPlay.cardId === cardId;
+                    return (
+                      <CardView
+                        key={`${cardId}-${idx}`}
+                        card={card}
+                        selected={selected}
+                        affordable={affordable}
+                        onClick={() => {
+                          if (!affordable) return;
+                          dispatch({ type: 'SELECT_CARD', cardId });
+                        }}
+                      />
+                    );
+                  })}
+                </div>
+                <div className="flex justify-center mt-2">
+                  <button className="btn" onClick={() => dispatch({ type: 'END_TURN' })}>
+                    ⌛ إنهاء الدور
+                  </button>
+                </div>
+              </div>
+            </div>
+
+            {/* العمود الأيسر: سجل الأحداث */}
+            <aside className="lg:w-80 w-full bg-black/40 border border-yellow-900/40 rounded p-3 flex flex-col" style={{ maxHeight: 'calc(100vh - 7rem)' }}>
+              <h3 className="font-display text-lg text-yellow-400 mb-2 text-center">📜 سجل المبارزة</h3>
+              <div className="ornament-line mb-2"><span>⚔</span></div>
+              <div ref={logRef} className="flex-1 overflow-y-auto pr-2" style={{ minHeight: '200px' }}>
+                {state.log.map((entry, i) => (
+                  <div key={i} className={`log-entry ${entry.type}`}>{entry.msg}</div>
+                ))}
+              </div>
+            </aside>
+          </main>
+
+          <footer className="text-center py-2 text-xs text-gray-600 font-display border-t border-yellow-900/20">
+            ⚜ Duelist's Gambit — نموذج أولي قابل للتطوير ⚜
+          </footer>
+        </div>
+      );
+    }
+
+    ReactDOM.createRoot(document.getElementById('root')).render(<App />);
+  </script>
+</body>
+</html>

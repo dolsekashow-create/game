@@ -1,0 +1,1128 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>لوحة التحكم — Duelist's Gambit</title>
+
+  <!-- Fonts -->
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link
+    href="https://fonts.googleapis.com/css2?family=Cinzel:wght@500;700;900&family=Cormorant+Garamond:ital,wght@0,400;0,600&family=Amiri:wght@400;700&family=JetBrains+Mono:wght@500;700&display=swap"
+    rel="stylesheet"
+  />
+
+  <!-- Tailwind -->
+  <script src="https://cdn.tailwindcss.com"></script>
+
+  <!-- Supabase -->
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+
+  <!-- React + Babel -->
+  <script crossorigin src="https://unpkg.com/react@18/umd/react.production.min.js"></script>
+  <script crossorigin src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js"></script>
+  <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
+
+  <style>
+    :root {
+      --bg-deep: #0a0a0f;
+      --bg-mid: #15131c;
+      --bg-light: #1f1c2a;
+      --gold: #c9a961;
+      --gold-bright: #e8c876;
+      --gold-dim: #8a7544;
+      --crimson: #8b1a1a;
+      --crimson-bright: #c43434;
+      --green: #5ec88f;
+      --frame-unit: #c9a961;
+      --frame-spell: #6b8cff;
+      --frame-trap: #c43434;
+      --text-soft: #d8d2c4;
+      --text-dim: #8a8275;
+    }
+    html, body {
+      margin: 0;
+      padding: 0;
+      background: var(--bg-deep);
+      color: var(--text-soft);
+      font-family: 'Cormorant Garamond', 'Amiri', serif;
+      min-height: 100vh;
+    }
+    body {
+      background:
+        radial-gradient(ellipse at top, #1a1530 0%, transparent 60%),
+        radial-gradient(ellipse at bottom, #1a1020 0%, transparent 60%),
+        var(--bg-deep);
+      background-attachment: fixed;
+    }
+    body::before {
+      content: "";
+      position: fixed;
+      inset: 0;
+      pointer-events: none;
+      opacity: 0.04;
+      background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 200 200' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.85' numOctaves='3'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)'/%3E%3C/svg%3E");
+      z-index: 9999;
+    }
+    .font-display { font-family: 'Cinzel', serif; letter-spacing: 0.04em; }
+    .font-body { font-family: 'Cormorant Garamond', serif; }
+    .font-mono { font-family: 'JetBrains Mono', monospace; }
+
+    /* Buttons */
+    .btn {
+      font-family: 'Cinzel', serif;
+      font-weight: 600;
+      letter-spacing: 0.06em;
+      padding: 0.55rem 1.1rem;
+      border: 1.5px solid var(--gold);
+      background: linear-gradient(135deg, rgba(201,169,97,0.15) 0%, rgba(201,169,97,0.05) 100%);
+      color: var(--gold-bright);
+      border-radius: 4px;
+      cursor: pointer;
+      transition: all 0.2s ease;
+      text-transform: uppercase;
+      font-size: 0.78rem;
+      text-decoration: none;
+      display: inline-block;
+    }
+    .btn:hover {
+      background: linear-gradient(135deg, rgba(201,169,97,0.3) 0%, rgba(201,169,97,0.15) 100%);
+      box-shadow: 0 0 16px rgba(201,169,97,0.4);
+    }
+    .btn:active { transform: translateY(1px); }
+    .btn:disabled { opacity: 0.4; cursor: not-allowed; }
+    .btn-crimson {
+      border-color: var(--crimson-bright);
+      color: var(--crimson-bright);
+      background: linear-gradient(135deg, rgba(196,52,52,0.15) 0%, rgba(196,52,52,0.05) 100%);
+    }
+    .btn-crimson:hover {
+      background: linear-gradient(135deg, rgba(196,52,52,0.3) 0%, rgba(196,52,52,0.15) 100%);
+      box-shadow: 0 0 16px rgba(196,52,52,0.4);
+    }
+    .btn-green {
+      border-color: var(--green);
+      color: var(--green);
+      background: linear-gradient(135deg, rgba(94,200,143,0.15) 0%, rgba(94,200,143,0.05) 100%);
+    }
+    .btn-green:hover {
+      background: linear-gradient(135deg, rgba(94,200,143,0.3) 0%, rgba(94,200,143,0.15) 100%);
+      box-shadow: 0 0 16px rgba(94,200,143,0.4);
+    }
+
+    /* Card thumbnail (in list) */
+    .card-thumb {
+      width: 100%;
+      aspect-ratio: 0.7;
+      background: linear-gradient(165deg, #1a1622 0%, #100c18 100%);
+      border-radius: 6px;
+      padding: 4px;
+      cursor: pointer;
+      transition: all 0.2s ease;
+      display: flex;
+      flex-direction: column;
+      position: relative;
+      box-shadow: 0 3px 10px rgba(0,0,0,0.5);
+    }
+    .card-thumb.unit { border: 2px solid var(--frame-unit); }
+    .card-thumb.spell { border: 2px solid var(--frame-spell); }
+    .card-thumb.trap { border: 2px solid var(--frame-trap); }
+    .card-thumb:hover {
+      transform: translateY(-3px);
+      box-shadow: 0 6px 16px rgba(201,169,97,0.3);
+    }
+    .card-thumb.selected {
+      box-shadow: 0 0 24px var(--gold-bright), 0 6px 16px rgba(0,0,0,0.5);
+      transform: translateY(-3px);
+    }
+    .card-thumb-name {
+      font-family: 'Cinzel', serif;
+      font-size: 0.62rem;
+      color: var(--gold-bright);
+      text-align: center;
+      line-height: 1;
+      margin-bottom: 3px;
+    }
+    .card-thumb-img {
+      flex: 1;
+      background: linear-gradient(135deg, #2a2530 0%, #15101a 100%);
+      border-radius: 3px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      overflow: hidden;
+      font-size: 1.8rem;
+      color: rgba(201,169,97,0.3);
+    }
+    .card-thumb-img img {
+      width: 100%; height: 100%; object-fit: cover;
+    }
+    .card-thumb-cost {
+      position: absolute;
+      top: -6px;
+      right: -6px;
+      width: 22px;
+      height: 22px;
+      background: radial-gradient(circle at 30% 30%, #a0b8ff 0%, #4a6acc 60%, #1a2a6c 100%);
+      border: 1.5px solid #a0b8ff;
+      border-radius: 50%;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-family: 'JetBrains Mono', monospace;
+      font-weight: 700;
+      font-size: 0.7rem;
+      color: white;
+      box-shadow: 0 0 6px rgba(107, 140, 255, 0.5);
+    }
+    .card-thumb-stats {
+      display: flex;
+      justify-content: space-around;
+      font-family: 'JetBrains Mono', monospace;
+      font-size: 0.6rem;
+      margin-top: 2px;
+      color: var(--text-soft);
+    }
+
+    /* Form */
+    .field-group { margin-bottom: 1rem; }
+    .field-label {
+      display: block;
+      font-family: 'Cinzel', serif;
+      font-size: 0.72rem;
+      color: var(--gold);
+      margin-bottom: 0.35rem;
+      letter-spacing: 0.05em;
+    }
+    .field-input, .field-select, .field-textarea {
+      width: 100%;
+      background: var(--bg-mid);
+      border: 1px solid rgba(201,169,97,0.3);
+      color: var(--text-soft);
+      padding: 0.55rem 0.7rem;
+      border-radius: 4px;
+      font-family: 'Cormorant Garamond', 'Amiri', serif;
+      font-size: 1rem;
+      transition: border 0.2s;
+    }
+    .field-input:focus, .field-select:focus, .field-textarea:focus {
+      outline: none;
+      border-color: var(--gold-bright);
+      box-shadow: 0 0 0 2px rgba(201,169,97,0.15);
+    }
+    .field-textarea { resize: vertical; min-height: 70px; font-family: 'Amiri', serif; }
+    .field-select { cursor: pointer; }
+
+    /* Image upload area */
+    .img-drop {
+      border: 2px dashed rgba(201,169,97,0.4);
+      border-radius: 6px;
+      padding: 1.2rem;
+      text-align: center;
+      cursor: pointer;
+      transition: all 0.2s;
+      background: rgba(0,0,0,0.3);
+      position: relative;
+      min-height: 200px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      flex-direction: column;
+      gap: 0.5rem;
+    }
+    .img-drop:hover {
+      border-color: var(--gold-bright);
+      background: rgba(201,169,97,0.05);
+    }
+    .img-drop.has-image { padding: 0.5rem; }
+    .img-drop img { max-width: 100%; max-height: 240px; border-radius: 4px; }
+
+    /* Save status */
+    .save-pill {
+      font-family: 'Cinzel', serif;
+      font-size: 0.7rem;
+      padding: 0.3rem 0.7rem;
+      border-radius: 999px;
+      display: inline-flex;
+      align-items: center;
+      gap: 0.4rem;
+      letter-spacing: 0.05em;
+    }
+    .save-pill.saved { background: rgba(94,200,143,0.15); color: var(--green); border: 1px solid var(--green); }
+    .save-pill.saving { background: rgba(232,200,118,0.15); color: var(--gold-bright); border: 1px solid var(--gold); }
+    .save-pill.error { background: rgba(196,52,52,0.15); color: var(--crimson-bright); border: 1px solid var(--crimson-bright); }
+
+    /* Tab */
+    .tab {
+      padding: 0.5rem 1rem;
+      font-family: 'Cinzel', serif;
+      font-size: 0.8rem;
+      color: var(--text-dim);
+      cursor: pointer;
+      border-bottom: 2px solid transparent;
+      transition: all 0.2s;
+      letter-spacing: 0.04em;
+    }
+    .tab:hover { color: var(--gold); }
+    .tab.active {
+      color: var(--gold-bright);
+      border-bottom-color: var(--gold-bright);
+    }
+
+    /* Scrollbar */
+    ::-webkit-scrollbar { width: 8px; height: 8px; }
+    ::-webkit-scrollbar-track { background: var(--bg-mid); }
+    ::-webkit-scrollbar-thumb { background: var(--gold-dim); border-radius: 4px; }
+    ::-webkit-scrollbar-thumb:hover { background: var(--gold); }
+
+    /* Modal */
+    .modal-backdrop {
+      position: fixed;
+      inset: 0;
+      background: rgba(5, 5, 12, 0.85);
+      backdrop-filter: blur(6px);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      z-index: 1000;
+    }
+    .modal {
+      background: linear-gradient(165deg, #1a1622 0%, #100c18 100%);
+      border: 2px solid var(--gold);
+      border-radius: 8px;
+      padding: 2rem;
+      max-width: 500px;
+      width: 90%;
+      box-shadow: 0 0 40px rgba(201,169,97,0.3);
+    }
+
+    .ornament-line {
+      display: flex;
+      align-items: center;
+      gap: 0.5rem;
+      color: var(--gold-dim);
+    }
+    .ornament-line::before, .ornament-line::after {
+      content: "";
+      flex: 1;
+      height: 1px;
+      background: linear-gradient(90deg, transparent, var(--gold-dim), transparent);
+    }
+  </style>
+</head>
+<body>
+  <div id="root"></div>
+
+  <script type="text/babel">
+    const { useState, useEffect, useRef, useMemo, useCallback } = React;
+
+    // ════════════════════════════════════════════════════════════
+    // SUPABASE CONFIG
+    // ════════════════════════════════════════════════════════════
+    const SUPABASE_URL = 'https://gioipkyeaqhqimnzwxnl.supabase.co';
+    const SUPABASE_ANON_KEY = 'sb_publishable_RueQN20GRQjDKnnDiX0Isg_sEU3YHm3';
+    const STORAGE_BUCKET = 'card-images';
+    const sb = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+
+    // ════════════════════════════════════════════════════════════
+    // الكروت الافتراضية (نفس قائمة index.html)
+    // ════════════════════════════════════════════════════════════
+    const DEFAULT_CARDS = [
+      { id: 'u01', name_en: 'Foot Soldier', name_ar: 'جندي مشاة', type: 'unit', cost: 1, movement: 'pawn', atk: 1, hp: 2, desc_ar: 'يتحرك خطوة واحدة للأمام.', icon: '⚔️', image_url: null, ability: null, target: null, effect: null, damage: null },
+      { id: 'u02', name_en: 'Bowman', name_ar: 'رامي السهام', type: 'unit', cost: 2, movement: 'pawn', atk: 3, hp: 1, desc_ar: 'هجوم قوي، صحة هشة. اضربه قبل أن يضربك.', icon: '🏹', image_url: null, ability: null, target: null, effect: null, damage: null },
+      { id: 'u03', name_en: 'Mounted Knight', name_ar: 'الفارس الراكب', type: 'unit', cost: 3, movement: 'knight', atk: 3, hp: 2, desc_ar: 'يقفز فوق القطع كحصان الشطرنج. سريع ومناور.', icon: '🐎', image_url: null, ability: null, target: null, effect: null, damage: null },
+      { id: 'u04', name_en: 'Cleric', name_ar: 'الكاهن', type: 'unit', cost: 3, movement: 'bishop', atk: 1, hp: 4, desc_ar: 'يتحرك قطرياً. مرافقوه الجوار يحصلون على +1 صحة.', icon: '✝️', image_url: null, ability: 'aura_hp', target: null, effect: null, damage: null },
+      { id: 'u05', name_en: 'Royal Templar', name_ar: 'فارس الهيكل', type: 'unit', cost: 4, movement: 'king', atk: 3, hp: 4, desc_ar: 'خطوة واحدة في أي اتجاه. متوازن وقوي.', icon: '🛡️', image_url: null, ability: null, target: null, effect: null, damage: null },
+      { id: 'u06', name_en: 'Sentinel', name_ar: 'الحارس', type: 'unit', cost: 4, movement: 'rook_2', atk: 2, hp: 5, desc_ar: 'يتحرك مستقيماً حتى خانتين. درع متين.', icon: '🗡️', image_url: null, ability: null, target: null, effect: null, damage: null },
+      { id: 'u07', name_en: 'Battle Mage', name_ar: 'الساحر المحارب', type: 'unit', cost: 4, movement: 'bishop', atk: 3, hp: 3, desc_ar: 'حركة الفيل. ساحر متعدد المواهب.', icon: '🔮', image_url: null, ability: null, target: null, effect: null, damage: null },
+      { id: 'u08', name_en: 'Shadow Assassin', name_ar: 'قاتل الظلال', type: 'unit', cost: 3, movement: 'knight', atk: 4, hp: 1, desc_ar: 'سيف فتاك بدرع هش. ضربة واحدة قاتلة.', icon: '🗡️', image_url: null, ability: null, target: null, effect: null, damage: null },
+      { id: 'u09', name_en: 'War Beast', name_ar: 'الوحش الحربي', type: 'unit', cost: 5, movement: 'queen_3', atk: 4, hp: 4, desc_ar: 'يتحرك كالملكة لكن حتى 3 خانات. متوازن.', icon: '🐺', image_url: null, ability: null, target: null, effect: null, damage: null },
+      { id: 'u10', name_en: 'Phoenix Knight', name_ar: 'فارس العنقاء', type: 'unit', cost: 5, movement: 'bishop', atk: 3, hp: 3, desc_ar: 'عند موته، يعود إلى يدك بدلاً من المقبرة.', icon: '🔥', image_url: null, ability: 'phoenix', target: null, effect: null, damage: null },
+      { id: 'u11', name_en: 'Stone Golem', name_ar: 'تمثال الحجر', type: 'unit', cost: 5, movement: 'king', atk: 3, hp: 7, desc_ar: 'بطيء لكنه شبه خالد. جدار متحرك.', icon: '🗿', image_url: null, ability: null, target: null, effect: null, damage: null },
+      { id: 'u12', name_en: 'Ancient Dragon', name_ar: 'التنين العتيق', type: 'unit', cost: 7, movement: 'queen', atk: 5, hp: 5, desc_ar: 'حركة الملكة الكاملة. أقوى وحش في اللعبة.', icon: '🐲', image_url: null, ability: null, target: null, effect: null, damage: null },
+      { id: 's01', name_en: 'Fireball', name_ar: 'كرة النار', type: 'spell', cost: 3, movement: null, atk: null, hp: null, desc_ar: 'وجّه 4 ضرر لأي وحش على الرقعة.', icon: '🔥', image_url: null, ability: null, target: 'any_unit', effect: null, damage: 4 },
+      { id: 's02', name_en: 'Healing Light', name_ar: 'نور الشفاء', type: 'spell', cost: 2, movement: null, atk: null, hp: null, desc_ar: 'استرد الصحة الكاملة لأحد وحوشك.', icon: '✨', image_url: null, ability: null, target: 'own_unit', effect: null, damage: null },
+      { id: 's03', name_en: 'Arcane Teleport', name_ar: 'الانتقال السحري', type: 'spell', cost: 3, movement: null, atk: null, hp: null, desc_ar: 'انقل أحد وحوشك إلى أي خانة فاضية في نصفك.', icon: '🌀', image_url: null, ability: null, target: 'own_unit_then_empty', effect: null, damage: null },
+      { id: 's04', name_en: 'Reinforcements', name_ar: 'التعزيزات', type: 'spell', cost: 2, movement: null, atk: null, hp: null, desc_ar: 'اسحب كرتين من ديكك.', icon: '📜', image_url: null, ability: null, target: 'self', effect: null, damage: null },
+      { id: 't01', name_en: 'Pitfall', name_ar: 'الحفرة', type: 'trap', cost: 2, movement: null, atk: null, hp: null, desc_ar: 'عندما يدخل وحش العدو الخانة: يُدمَّر فوراً.', icon: '🕳️', image_url: null, ability: null, target: null, effect: 'destroy', damage: null },
+      { id: 't02', name_en: 'Snare', name_ar: 'الكمين', type: 'trap', cost: 1, movement: null, atk: null, hp: null, desc_ar: 'عندما يدخل وحش العدو: لا يستطيع التحرك في الدور التالي.', icon: '🪤', image_url: null, ability: null, target: null, effect: 'snare', damage: null },
+      { id: 't03', name_en: 'Mirror Trap', name_ar: 'فخ المرآة', type: 'trap', cost: 3, movement: null, atk: null, hp: null, desc_ar: 'عندما يدخل وحش العدو: يعود إلى يد صاحبه.', icon: '🪞', image_url: null, ability: null, target: null, effect: 'bounce', damage: null },
+      { id: 't04', name_en: 'Explosive Rune', name_ar: 'الرونة المتفجرة', type: 'trap', cost: 2, movement: null, atk: null, hp: null, desc_ar: 'انفجار: 3 ضرر للوحش الذي دخل وكل الوحوش المجاورة.', icon: '💥', image_url: null, ability: null, target: null, effect: 'explode', damage: null }
+    ];
+
+    // ════════════════════════════════════════════════════════════
+    // OPTIONS للقوائم المنسدلة
+    // ════════════════════════════════════════════════════════════
+    const MOVEMENT_OPTIONS = [
+      { value: 'pawn', label: 'مشاة (خطوة للأمام)' },
+      { value: 'knight', label: 'حصان (قفز L)' },
+      { value: 'bishop', label: 'فيل (قطري)' },
+      { value: 'rook', label: 'قلعة (مستقيم)' },
+      { value: 'queen', label: 'ملكة (أي اتجاه)' },
+      { value: 'king', label: 'ملك (خطوة في كل اتجاه)' },
+      { value: 'rook_2', label: 'قلعة قصيرة (مستقيم، حتى 2)' },
+      { value: 'queen_3', label: 'ملكة قصيرة (أي اتجاه، حتى 3)' }
+    ];
+
+    const ABILITY_OPTIONS = [
+      { value: '', label: 'بدون' },
+      { value: 'phoenix', label: 'العنقاء (يعود لليد عند الموت)' },
+      { value: 'aura_hp', label: 'هالة شفاء (+1 صحة للجيران)' }
+    ];
+
+    const SPELL_TARGET_OPTIONS = [
+      { value: 'self', label: 'ذاتي (بدون هدف)' },
+      { value: 'any_unit', label: 'أي وحش' },
+      { value: 'own_unit', label: 'وحش حليف' },
+      { value: 'own_unit_then_empty', label: 'وحش حليف ثم خانة فارغة' }
+    ];
+
+    const TRAP_EFFECT_OPTIONS = [
+      { value: 'destroy', label: 'تدمير الوحش' },
+      { value: 'snare', label: 'تقييد (لا حركة دورة كاملة)' },
+      { value: 'bounce', label: 'إعادة لليد' },
+      { value: 'explode', label: 'انفجار (ضرر منطقة)' }
+    ];
+
+    // ════════════════════════════════════════════════════════════
+    // SUPABASE HELPERS
+    // ════════════════════════════════════════════════════════════
+    async function fetchAllCards() {
+      const { data, error } = await sb.from('cards').select('*').order('id');
+      if (error) throw error;
+      return data || [];
+    }
+
+    async function upsertCard(card) {
+      const payload = {
+        id: card.id,
+        name_en: card.name_en,
+        name_ar: card.name_ar,
+        type: card.type,
+        cost: Number(card.cost),
+        movement: card.movement || null,
+        atk: card.atk !== null && card.atk !== '' ? Number(card.atk) : null,
+        hp: card.hp !== null && card.hp !== '' ? Number(card.hp) : null,
+        desc_ar: card.desc_ar,
+        icon: card.icon || null,
+        image_url: card.image_url || null,
+        ability: card.ability || null,
+        target: card.target || null,
+        effect: card.effect || null,
+        damage: card.damage !== null && card.damage !== '' ? Number(card.damage) : null
+      };
+      const { error } = await sb.from('cards').upsert(payload);
+      if (error) throw error;
+    }
+
+    async function uploadImage(file, cardId) {
+      const ext = (file.name.split('.').pop() || 'png').toLowerCase();
+      const filename = `${cardId}-${Date.now()}.${ext}`;
+      const { error: upErr } = await sb.storage
+        .from(STORAGE_BUCKET)
+        .upload(filename, file, { upsert: true, cacheControl: '3600' });
+      if (upErr) throw upErr;
+      const { data: urlData } = sb.storage.from(STORAGE_BUCKET).getPublicUrl(filename);
+      return urlData.publicUrl;
+    }
+
+    async function fetchSettings() {
+      const { data, error } = await sb.from('settings').select('*').eq('id', 1).maybeSingle();
+      if (error) throw error;
+      return data || { id: 1, card_back_url: null };
+    }
+
+    async function saveSettings(settings) {
+      const { error } = await sb.from('settings').upsert({
+        id: 1,
+        card_back_url: settings.card_back_url || null
+      });
+      if (error) throw error;
+    }
+
+    async function seedDefaults() {
+      for (const card of DEFAULT_CARDS) {
+        await upsertCard(card);
+      }
+    }
+
+    async function deleteAllCards() {
+      const { error } = await sb.from('cards').delete().neq('id', '___never___');
+      if (error) throw error;
+    }
+
+    // ════════════════════════════════════════════════════════════
+    // مكوّن: حقل نموذج
+    // ════════════════════════════════════════════════════════════
+    function Field({ label, children, hint }) {
+      return (
+        <div className="field-group">
+          <label className="field-label">{label}</label>
+          {children}
+          {hint && <div className="text-xs text-gray-500 mt-1 font-body italic">{hint}</div>}
+        </div>
+      );
+    }
+
+    // ════════════════════════════════════════════════════════════
+    // مكوّن: رفع الصورة (drag/drop + click)
+    // ════════════════════════════════════════════════════════════
+    function ImageUploader({ currentUrl, onUpload, onClear, label = 'الصورة' }) {
+      const fileRef = useRef(null);
+      const [uploading, setUploading] = useState(false);
+      const [error, setError] = useState(null);
+
+      async function handleFile(file) {
+        if (!file) return;
+        if (!file.type.startsWith('image/')) {
+          setError('لطفاً اختر ملف صورة فقط.');
+          return;
+        }
+        if (file.size > 5 * 1024 * 1024) {
+          setError('الصورة كبيرة جداً (الحد 5MB).');
+          return;
+        }
+        setError(null);
+        setUploading(true);
+        try {
+          await onUpload(file);
+        } catch (e) {
+          setError('فشل رفع الصورة: ' + (e.message || e));
+        } finally {
+          setUploading(false);
+        }
+      }
+
+      function onDrop(e) {
+        e.preventDefault();
+        const file = e.dataTransfer.files?.[0];
+        if (file) handleFile(file);
+      }
+
+      return (
+        <div>
+          <div
+            className={`img-drop ${currentUrl ? 'has-image' : ''}`}
+            onClick={() => !uploading && fileRef.current?.click()}
+            onDragOver={(e) => e.preventDefault()}
+            onDrop={onDrop}
+          >
+            {uploading ? (
+              <>
+                <div className="font-display text-yellow-400 text-2xl">⚜</div>
+                <div className="font-body text-gray-300">جاري الرفع...</div>
+              </>
+            ) : currentUrl ? (
+              <img src={currentUrl} alt="preview" />
+            ) : (
+              <>
+                <div className="text-4xl">🖼️</div>
+                <div className="font-body text-gray-400">اسحب الصورة هنا أو اضغط للاختيار</div>
+                <div className="text-xs text-gray-600">PNG, JPG, WEBP — حتى 5MB</div>
+              </>
+            )}
+            <input
+              ref={fileRef}
+              type="file"
+              accept="image/*"
+              hidden
+              onChange={(e) => handleFile(e.target.files?.[0])}
+            />
+          </div>
+          {error && <div className="text-red-400 text-sm mt-2 font-body">{error}</div>}
+          {currentUrl && (
+            <div className="mt-2 flex justify-end">
+              <button
+                className="btn btn-crimson"
+                style={{ padding: '0.3rem 0.7rem', fontSize: '0.7rem' }}
+                onClick={(e) => { e.stopPropagation(); onClear(); }}
+              >
+                إزالة الصورة
+              </button>
+            </div>
+          )}
+        </div>
+      );
+    }
+
+    // ════════════════════════════════════════════════════════════
+    // مكوّن: محرر الكارت
+    // ════════════════════════════════════════════════════════════
+    function CardEditor({ card, defaults, onChange, onSave, onResetToDefault, saveStatus }) {
+      const def = defaults.find(d => d.id === card.id);
+
+      function update(field, value) {
+        onChange({ ...card, [field]: value });
+      }
+
+      async function handleImageUpload(file) {
+        const url = await uploadImage(file, card.id);
+        const updated = { ...card, image_url: url };
+        onChange(updated);
+        await onSave(updated);
+      }
+
+      async function handleClearImage() {
+        const updated = { ...card, image_url: null };
+        onChange(updated);
+        await onSave(updated);
+      }
+
+      return (
+        <div className="bg-black/40 border border-yellow-900/40 rounded-lg p-5">
+          <div className="flex items-center justify-between mb-4">
+            <h2 className="font-display text-xl text-yellow-400">
+              ⚜ تعديل: <span className="text-yellow-200">{card.name_ar}</span>
+              <span className="text-xs text-gray-500 ml-2 font-mono">[{card.id}]</span>
+            </h2>
+            <div className="flex items-center gap-2">
+              {saveStatus === 'saving' && <span className="save-pill saving">⌛ جاري الحفظ...</span>}
+              {saveStatus === 'saved' && <span className="save-pill saved">✓ محفوظ</span>}
+              {saveStatus === 'error' && <span className="save-pill error">✗ خطأ</span>}
+            </div>
+          </div>
+
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
+            {/* الصورة */}
+            <div>
+              <Field label="صورة الكارت" hint="هذه الصورة ستظهر في وسط الكارت في اللعبة.">
+                <ImageUploader
+                  currentUrl={card.image_url}
+                  onUpload={handleImageUpload}
+                  onClear={handleClearImage}
+                />
+              </Field>
+            </div>
+
+            {/* الحقول الأساسية */}
+            <div>
+              <Field label="الاسم بالعربية">
+                <input
+                  type="text"
+                  className="field-input"
+                  value={card.name_ar || ''}
+                  onChange={(e) => update('name_ar', e.target.value)}
+                />
+              </Field>
+              <Field label="Name (English)">
+                <input
+                  type="text"
+                  className="field-input"
+                  value={card.name_en || ''}
+                  onChange={(e) => update('name_en', e.target.value)}
+                />
+              </Field>
+              <div className="grid grid-cols-2 gap-3">
+                <Field label="التكلفة (مانا)">
+                  <input
+                    type="number"
+                    min="0" max="10"
+                    className="field-input"
+                    value={card.cost ?? ''}
+                    onChange={(e) => update('cost', e.target.value === '' ? '' : Number(e.target.value))}
+                  />
+                </Field>
+                <Field label="الأيقونة (إيموجي)">
+                  <input
+                    type="text"
+                    className="field-input"
+                    value={card.icon || ''}
+                    maxLength="3"
+                    onChange={(e) => update('icon', e.target.value)}
+                  />
+                </Field>
+              </div>
+              <Field label="الوصف">
+                <textarea
+                  className="field-textarea"
+                  value={card.desc_ar || ''}
+                  onChange={(e) => update('desc_ar', e.target.value)}
+                />
+              </Field>
+            </div>
+          </div>
+
+          {/* الحقول الخاصة بالوحوش */}
+          {card.type === 'unit' && (
+            <div className="mt-3 pt-3 border-t border-yellow-900/30">
+              <h3 className="font-display text-sm text-yellow-500 mb-3">⚔ خصائص الوحش</h3>
+              <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
+                <Field label="نمط الحركة">
+                  <select
+                    className="field-select"
+                    value={card.movement || 'pawn'}
+                    onChange={(e) => update('movement', e.target.value)}
+                  >
+                    {MOVEMENT_OPTIONS.map(o => <option key={o.value} value={o.value}>{o.label}</option>)}
+                  </select>
+                </Field>
+                <Field label="الهجوم (ATK)">
+                  <input
+                    type="number"
+                    min="0" max="20"
+                    className="field-input"
+                    value={card.atk ?? ''}
+                    onChange={(e) => update('atk', e.target.value === '' ? '' : Number(e.target.value))}
+                  />
+                </Field>
+                <Field label="الصحة (HP)">
+                  <input
+                    type="number"
+                    min="1" max="20"
+                    className="field-input"
+                    value={card.hp ?? ''}
+                    onChange={(e) => update('hp', e.target.value === '' ? '' : Number(e.target.value))}
+                  />
+                </Field>
+              </div>
+              <Field label="القدرة الخاصة">
+                <select
+                  className="field-select"
+                  value={card.ability || ''}
+                  onChange={(e) => update('ability', e.target.value || null)}
+                >
+                  {ABILITY_OPTIONS.map(o => <option key={o.value} value={o.value}>{o.label}</option>)}
+                </select>
+              </Field>
+            </div>
+          )}
+
+          {/* الحقول الخاصة بالسحر */}
+          {card.type === 'spell' && (
+            <div className="mt-3 pt-3 border-t border-yellow-900/30">
+              <h3 className="font-display text-sm text-yellow-500 mb-3">✨ خصائص السحر</h3>
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+                <Field label="نوع الهدف">
+                  <select
+                    className="field-select"
+                    value={card.target || 'self'}
+                    onChange={(e) => update('target', e.target.value)}
+                  >
+                    {SPELL_TARGET_OPTIONS.map(o => <option key={o.value} value={o.value}>{o.label}</option>)}
+                  </select>
+                </Field>
+                <Field label="الضرر (إن وُجد)">
+                  <input
+                    type="number"
+                    min="0" max="20"
+                    className="field-input"
+                    value={card.damage ?? ''}
+                    onChange={(e) => update('damage', e.target.value === '' ? null : Number(e.target.value))}
+                  />
+                </Field>
+              </div>
+            </div>
+          )}
+
+          {/* الحقول الخاصة بالفخاخ */}
+          {card.type === 'trap' && (
+            <div className="mt-3 pt-3 border-t border-yellow-900/30">
+              <h3 className="font-display text-sm text-yellow-500 mb-3">🕳️ خصائص الفخ</h3>
+              <Field label="نوع التأثير">
+                <select
+                  className="field-select"
+                  value={card.effect || 'destroy'}
+                  onChange={(e) => update('effect', e.target.value)}
+                >
+                  {TRAP_EFFECT_OPTIONS.map(o => <option key={o.value} value={o.value}>{o.label}</option>)}
+                </select>
+              </Field>
+            </div>
+          )}
+
+          {/* أزرار */}
+          <div className="mt-5 pt-3 border-t border-yellow-900/30 flex justify-between items-center flex-wrap gap-2">
+            <button className="btn btn-crimson" onClick={() => {
+              if (confirm('استعادة هذا الكارت إلى قيمه الافتراضية؟ (الصورة ستبقى)')) {
+                onResetToDefault();
+              }
+            }}>
+              ⟲ استعادة الافتراضي
+            </button>
+            <button className="btn btn-green" onClick={() => onSave(card)}>
+              💾 حفظ التغييرات
+            </button>
+          </div>
+        </div>
+      );
+    }
+
+    // ════════════════════════════════════════════════════════════
+    // مكوّن: قائمة الكروت (الجانب الأيمن)
+    // ════════════════════════════════════════════════════════════
+    function CardList({ cards, selectedId, onSelect }) {
+      const [filter, setFilter] = useState('all');
+      const filtered = filter === 'all' ? cards : cards.filter(c => c.type === filter);
+
+      const tabs = [
+        { id: 'all', label: 'الكل', count: cards.length },
+        { id: 'unit', label: 'وحوش', count: cards.filter(c => c.type === 'unit').length },
+        { id: 'spell', label: 'سحر', count: cards.filter(c => c.type === 'spell').length },
+        { id: 'trap', label: 'فخاخ', count: cards.filter(c => c.type === 'trap').length }
+      ];
+
+      return (
+        <div className="bg-black/40 border border-yellow-900/40 rounded-lg p-4">
+          <h2 className="font-display text-lg text-yellow-400 mb-3 text-center">📚 الكروت</h2>
+          <div className="ornament-line mb-3"><span>⚜</span></div>
+          <div className="flex gap-1 mb-4 border-b border-yellow-900/30 flex-wrap">
+            {tabs.map(t => (
+              <div
+                key={t.id}
+                className={`tab ${filter === t.id ? 'active' : ''}`}
+                onClick={() => setFilter(t.id)}
+              >
+                {t.label} <span className="text-xs opacity-60">({t.count})</span>
+              </div>
+            ))}
+          </div>
+          <div className="grid grid-cols-3 sm:grid-cols-4 md:grid-cols-3 lg:grid-cols-4 gap-3">
+            {filtered.map(card => (
+              <div
+                key={card.id}
+                className={`card-thumb ${card.type} ${selectedId === card.id ? 'selected' : ''}`}
+                onClick={() => onSelect(card.id)}
+              >
+                <div className="card-thumb-cost">{card.cost}</div>
+                <div className="card-thumb-name">{card.name_ar}</div>
+                <div className="card-thumb-img">
+                  {card.image_url ? (
+                    <img src={card.image_url} alt={card.name_ar} />
+                  ) : (
+                    <span>{card.icon || '?'}</span>
+                  )}
+                </div>
+                {card.type === 'unit' && (
+                  <div className="card-thumb-stats">
+                    <span style={{ color: '#ff8866' }}>⚔{card.atk}</span>
+                    <span style={{ color: '#66cc99' }}>♥{card.hp}</span>
+                  </div>
+                )}
+              </div>
+            ))}
+          </div>
+        </div>
+      );
+    }
+
+    // ════════════════════════════════════════════════════════════
+    // مكوّن: شريط الإعدادات العامة (صورة الظهر + أزرار رئيسية)
+    // ════════════════════════════════════════════════════════════
+    function GlobalSettings({ cards, settings, onUpdateSettings, onReseed, onResetAll, onExport, onImport }) {
+      const fileImportRef = useRef(null);
+      const [globalSaveStatus, setGlobalSaveStatus] = useState(null);
+
+      async function handleBackUpload(file) {
+        const url = await uploadImage(file, 'card-back');
+        const newSettings = { ...settings, card_back_url: url };
+        setGlobalSaveStatus('saving');
+        try {
+          await saveSettings(newSettings);
+          onUpdateSettings(newSettings);
+          setGlobalSaveStatus('saved');
+          setTimeout(() => setGlobalSaveStatus(null), 2000);
+        } catch (e) {
+          setGlobalSaveStatus('error');
+        }
+      }
+
+      async function handleBackClear() {
+        const newSettings = { ...settings, card_back_url: null };
+        await saveSettings(newSettings);
+        onUpdateSettings(newSettings);
+      }
+
+      return (
+        <div className="bg-black/40 border border-yellow-900/40 rounded-lg p-4 mb-4">
+          <div className="flex items-center justify-between mb-3 flex-wrap gap-2">
+            <h2 className="font-display text-lg text-yellow-400">⚙ الإعدادات العامة</h2>
+            <div className="flex items-center gap-2 flex-wrap">
+              <button className="btn" onClick={onExport}>📥 تصدير JSON</button>
+              <button className="btn" onClick={() => fileImportRef.current?.click()}>📤 استيراد JSON</button>
+              <input ref={fileImportRef} type="file" accept=".json" hidden onChange={(e) => onImport(e.target.files?.[0])} />
+              <button className="btn btn-green" onClick={onReseed}>🌱 زرع الافتراضيات</button>
+              <button className="btn btn-crimson" onClick={onResetAll}>⟲ مسح وإعادة تعيين</button>
+            </div>
+          </div>
+
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-5">
+            <div>
+              <Field label="صورة ظهر الكروت" hint="هذه الصورة ستظهر على ظهر كل الكروت المخفية (يد الخصم).">
+                <ImageUploader
+                  currentUrl={settings.card_back_url}
+                  onUpload={handleBackUpload}
+                  onClear={handleBackClear}
+                />
+              </Field>
+              {globalSaveStatus === 'saved' && <div className="save-pill saved mt-2">✓ تم الحفظ</div>}
+            </div>
+
+            <div className="md:col-span-2 bg-yellow-950/20 border border-yellow-900/40 rounded p-3">
+              <h3 className="font-display text-sm text-yellow-400 mb-2">📌 تعليمات سريعة</h3>
+              <ul className="font-body text-sm space-y-1 text-gray-300 list-disc list-inside">
+                <li>قبل أي شيء، تأكد إنك شغّلت ملف <code className="text-yellow-300">setup.sql</code> في Supabase وأنشأت bucket باسم <code className="text-yellow-300">card-images</code> (Public).</li>
+                <li>إذا كانت قاعدة البيانات فارغة، اضغط <b className="text-green-400">"زرع الافتراضيات"</b> لتعبئة الكروت الـ 20.</li>
+                <li>اختر أي كارت من القائمة لتعديل تفاصيله أو رفع صورته. الحفظ في Supabase.</li>
+                <li>أي تعديل يظهر تلقائياً في اللعبة بعد تحديث الصفحة (<a href="index.html" className="text-yellow-300 underline">فتح اللعبة</a>).</li>
+              </ul>
+            </div>
+          </div>
+        </div>
+      );
+    }
+
+    // ════════════════════════════════════════════════════════════
+    // التطبيق الرئيسي
+    // ════════════════════════════════════════════════════════════
+    function App() {
+      const [loadState, setLoadState] = useState('loading'); // loading|ready|error
+      const [errorMsg, setErrorMsg] = useState('');
+      const [cards, setCards] = useState([]);
+      const [settings, setSettings] = useState({ id: 1, card_back_url: null });
+      const [selectedId, setSelectedId] = useState(null);
+      const [saveStatus, setSaveStatus] = useState({}); // {cardId: 'saving'|'saved'|'error'}
+      const [globalMsg, setGlobalMsg] = useState(null);
+
+      // تحميل البيانات
+      const reload = useCallback(async () => {
+        setLoadState('loading');
+        try {
+          const [cardsData, settingsData] = await Promise.all([
+            fetchAllCards(),
+            fetchSettings()
+          ]);
+          // لو DB فارغ، نعرض الافتراضيات ولكن ما نخزنش
+          if (cardsData.length === 0) {
+            setCards(DEFAULT_CARDS.map(c => ({ ...c })));
+          } else {
+            // دمج: نتأكد من ظهور كل الكروت حتى لو ناقصة من DB
+            const merged = DEFAULT_CARDS.map(def => {
+              const db = cardsData.find(c => c.id === def.id);
+              return db ? { ...def, ...db } : { ...def };
+            });
+            // كروت إضافية (لو فيه)
+            const extras = cardsData.filter(c => !DEFAULT_CARDS.find(d => d.id === c.id));
+            setCards([...merged, ...extras]);
+          }
+          setSettings(settingsData);
+          setLoadState('ready');
+          if (!selectedId && cardsData.length > 0) {
+            setSelectedId(cardsData[0].id);
+          } else if (!selectedId) {
+            setSelectedId(DEFAULT_CARDS[0].id);
+          }
+        } catch (e) {
+          setErrorMsg(e.message || String(e));
+          setLoadState('error');
+        }
+      }, [selectedId]);
+
+      useEffect(() => { reload(); }, []);
+
+      // تحديث كارت محلياً (بدون حفظ)
+      function updateCard(updated) {
+        setCards(prev => prev.map(c => c.id === updated.id ? updated : c));
+      }
+
+      // حفظ كارت في Supabase
+      async function saveCard(card) {
+        setSaveStatus(s => ({ ...s, [card.id]: 'saving' }));
+        try {
+          await upsertCard(card);
+          setSaveStatus(s => ({ ...s, [card.id]: 'saved' }));
+          setTimeout(() => {
+            setSaveStatus(s => {
+              const { [card.id]: _, ...rest } = s;
+              return rest;
+            });
+          }, 2000);
+        } catch (e) {
+          console.error(e);
+          setSaveStatus(s => ({ ...s, [card.id]: 'error' }));
+          setGlobalMsg({ type: 'error', text: 'فشل الحفظ: ' + (e.message || e) });
+        }
+      }
+
+      function resetCardToDefault(cardId) {
+        const def = DEFAULT_CARDS.find(d => d.id === cardId);
+        if (!def) return;
+        const current = cards.find(c => c.id === cardId);
+        const resetCard = { ...def, image_url: current?.image_url ?? null };
+        updateCard(resetCard);
+        saveCard(resetCard);
+      }
+
+      async function handleReseed() {
+        if (!confirm('سيتم كتابة كل الكروت الافتراضية إلى Supabase. ستحل محل أي تعديلات سابقة (الصور لن تُحذف). متابعة؟')) return;
+        setGlobalMsg({ type: 'info', text: 'جاري زرع الافتراضيات...' });
+        try {
+          await seedDefaults();
+          await reload();
+          setGlobalMsg({ type: 'success', text: '✓ تم زرع الكروت الافتراضية بنجاح.' });
+          setTimeout(() => setGlobalMsg(null), 3000);
+        } catch (e) {
+          setGlobalMsg({ type: 'error', text: 'فشل الزرع: ' + (e.message || e) });
+        }
+      }
+
+      async function handleResetAll() {
+        if (!confirm('سيتم حذف كل بيانات الكروت من Supabase وإعادة زرع الافتراضيات. الصور المرفوعة في الـ Storage لن تُحذف. هل أنت متأكد؟')) return;
+        if (!confirm('تأكيد ثانٍ: هذا الإجراء يمسح كل التعديلات.')) return;
+        setGlobalMsg({ type: 'info', text: 'جاري إعادة التعيين...' });
+        try {
+          await deleteAllCards();
+          await seedDefaults();
+          await reload();
+          setGlobalMsg({ type: 'success', text: '✓ تم إعادة التعيين بنجاح.' });
+          setTimeout(() => setGlobalMsg(null), 3000);
+        } catch (e) {
+          setGlobalMsg({ type: 'error', text: 'فشل: ' + (e.message || e) });
+        }
+      }
+
+      function handleExport() {
+        const data = {
+          cards: cards,
+          settings: settings,
+          exported_at: new Date().toISOString()
+        };
+        const blob = new Blob([JSON.stringify(data, null, 2)], { type: 'application/json' });
+        const url = URL.createObjectURL(blob);
+        const a = document.createElement('a');
+        a.href = url;
+        a.download = `duelists-gambit-${Date.now()}.json`;
+        a.click();
+        URL.revokeObjectURL(url);
+      }
+
+      async function handleImport(file) {
+        if (!file) return;
+        if (!confirm('استيراد البيانات سيكتب فوق التعديلات الحالية. متابعة؟')) return;
+        try {
+          const text = await file.text();
+          const data = JSON.parse(text);
+          if (!data.cards) throw new Error('ملف غير صالح: لا يوجد حقل cards');
+          for (const card of data.cards) {
+            await upsertCard(card);
+          }
+          if (data.settings) await saveSettings(data.settings);
+          await reload();
+          setGlobalMsg({ type: 'success', text: '✓ تم الاستيراد بنجاح.' });
+          setTimeout(() => setGlobalMsg(null), 3000);
+        } catch (e) {
+          setGlobalMsg({ type: 'error', text: 'فشل الاستيراد: ' + (e.message || e) });
+        }
+      }
+
+      // واجهة التحميل
+      if (loadState === 'loading') {
+        return (
+          <div className="min-h-screen flex items-center justify-center">
+            <div className="text-center">
+              <div className="font-display text-3xl text-yellow-400 mb-4">⚜</div>
+              <div className="font-display text-xl text-yellow-300">جاري التحميل من Supabase...</div>
+            </div>
+          </div>
+        );
+      }
+
+      if (loadState === 'error') {
+        return (
+          <div className="min-h-screen flex items-center justify-center">
+            <div className="modal text-center">
+              <div className="font-display text-2xl text-red-400 mb-4">⚠ خطأ في الاتصال</div>
+              <div className="font-body text-gray-200 mb-4">{errorMsg}</div>
+              <div className="font-body text-sm text-gray-400 mb-4">
+                تأكد إنك:
+                <ul className="list-disc list-inside mt-2 text-right">
+                  <li>شغّلت ملف <code className="text-yellow-300">setup.sql</code> في Supabase SQL Editor.</li>
+                  <li>أنشأت bucket باسم <code className="text-yellow-300">card-images</code> وجعلته Public.</li>
+                  <li>الرابط والمفتاح في الكود صحيحين.</li>
+                </ul>
+              </div>
+              <button className="btn" onClick={() => reload()}>إعادة المحاولة</button>
+            </div>
+          </div>
+        );
+      }
+
+      const selectedCard = cards.find(c => c.id === selectedId);
+
+      return (
+        <div className="min-h-screen">
+          {/* Header */}
+          <header className="px-6 py-3 border-b border-yellow-900/40 bg-black/40 sticky top-0 z-50 backdrop-blur">
+            <div className="flex items-center justify-between flex-wrap gap-3">
+              <div className="flex items-center gap-3">
+                <h1 className="font-display text-xl text-yellow-400 tracking-wider">⚙ لوحة التحكم</h1>
+                <span className="font-display text-xs text-gray-500">Duelist's Gambit</span>
+              </div>
+              <div className="flex items-center gap-2">
+                <a href="index.html" className="btn">🎮 العودة للعبة</a>
+              </div>
+            </div>
+          </header>
+
+          {/* Global message */}
+          {globalMsg && (
+            <div className={`px-6 py-2 text-center font-body ${
+              globalMsg.type === 'error' ? 'bg-red-950/50 text-red-300' :
+              globalMsg.type === 'success' ? 'bg-green-950/50 text-green-300' :
+              'bg-yellow-950/50 text-yellow-300'
+            }`}>
+              {globalMsg.text}
+            </div>
+          )}
+
+          {/* Body */}
+          <main className="p-4 md:p-6 max-w-7xl mx-auto">
+            <GlobalSettings
+              cards={cards}
+              settings={settings}
+              onUpdateSettings={setSettings}
+              onReseed={handleReseed}
+              onResetAll={handleResetAll}
+              onExport={handleExport}
+              onImport={handleImport}
+            />
+
+            <div className="grid grid-cols-1 lg:grid-cols-5 gap-4">
+              <div className="lg:col-span-2">
+                <CardList
+                  cards={cards}
+                  selectedId={selectedId}
+                  onSelect={setSelectedId}
+                />
+              </div>
+              <div className="lg:col-span-3">
+                {selectedCard ? (
+                  <CardEditor
+                    card={selectedCard}
+                    defaults={DEFAULT_CARDS}
+                    onChange={updateCard}
+                    onSave={saveCard}
+                    onResetToDefault={() => resetCardToDefault(selectedCard.id)}
+                    saveStatus={saveStatus[selectedCard.id]}
+                  />
+                ) : (
+                  <div className="bg-black/40 border border-yellow-900/40 rounded-lg p-8 text-center">
+                    <div className="font-display text-yellow-400 text-xl mb-2">⚜</div>
+                    <p className="font-body text-gray-400">اختر كارتاً من القائمة لتعديله.</p>
+                  </div>
+                )}
+              </div>
+            </div>
+          </main>
+
+          <footer className="text-center py-4 text-xs text-gray-600 font-display border-t border-yellow-900/20 mt-8">
+            ⚜ Duelist's Gambit Admin Panel ⚜
+          </footer>
+        </div>
+      );
+    }
+
+    ReactDOM.createRoot(document.getElementById('root')).render(<App />);
+  </script>
+</body>
+</html>
