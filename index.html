@@ -2294,8 +2294,11 @@
 
         // 1) أضف نفسك للـ queue
         async function joinQueue() {
-          // امسح أي entry قديم للمستخدم
-          await sb.from('matchmaking_queue').delete().eq('user_id', user.id);
+          console.log('[MM] joinQueue start, user:', user?.id);
+
+          // امسح أي entry قديم
+          const del = await sb.from('matchmaking_queue').delete().eq('user_id', user.id);
+          console.log('[MM] delete old:', del.error || 'ok');
 
           const { data, error } = await sb.from('matchmaking_queue').insert({
             user_id: user.id,
@@ -2303,25 +2306,28 @@
             status: 'waiting'
           }).select().single();
 
-          if (error || !data) { console.error('Queue insert error:', error); fallbackToBot(); return; }
+          console.log('[MM] insert result:', error || data);
+
+          if (error || !data) { console.error('[MM] insert failed:', error); fallbackToBot(); return; }
           myEntryId.current = data.id;
+          console.log('[MM] my entry id:', data.id);
 
-          // polling كل ثانية — أبسط وأضمن من Realtime
+          // polling كل ثانية
           pollRef.current = setInterval(() => pollForMatch(data.id), 1000);
-
-          // حاول فوراً
           await pollForMatch(data.id);
         }
 
         async function pollForMatch(myId) {
           if (resolvedRef.current) return;
 
-          // أولاً: هل أنا اتطابقت من لاعب تاني؟
-          const { data: me } = await sb
+          // هل أنا اتطابقت؟
+          const { data: me, error: meErr } = await sb
             .from('matchmaking_queue')
             .select('status, matched_with')
             .eq('id', myId)
             .single();
+
+          console.log('[MM] my status:', me?.status, meErr?.message);
 
           if (me?.status === 'matched' && !resolvedRef.current) {
             resolvedRef.current = true;
@@ -2329,8 +2335,8 @@
             return;
           }
 
-          // ثانياً: أنا اللي أبحث عن لاعب ينتظر
-          const { data: waiting } = await sb
+          // ابحث عن لاعب ينتظر
+          const { data: waiting, error: wErr } = await sb
             .from('matchmaking_queue')
             .select('id, user_id')
             .eq('status', 'waiting')
@@ -2338,17 +2344,20 @@
             .order('joined_at', { ascending: true })
             .limit(1);
 
+          console.log('[MM] waiting players:', waiting?.length, wErr?.message);
+
           if (waiting && waiting.length > 0 && !resolvedRef.current) {
             const opponent = waiting[0];
             const gameId = 'game_' + Date.now();
+            console.log('[MM] found opponent:', opponent.user_id, '— matching...');
 
-            // طابق الاثنين في نفس الوقت
             const [r1, r2] = await Promise.all([
               sb.from('matchmaking_queue').update({ status: 'matched', matched_with: user.id, game_id: gameId }).eq('id', opponent.id).eq('status', 'waiting'),
               sb.from('matchmaking_queue').update({ status: 'matched', matched_with: opponent.user_id, game_id: gameId }).eq('id', myId).eq('status', 'waiting'),
             ]);
 
-            // تأكد إن التطابق نجح (race condition protection)
+            console.log('[MM] match r1:', r1.error || 'ok', 'r2:', r2.error || 'ok');
+
             if (!r1.error && !r2.error && !resolvedRef.current) {
               resolvedRef.current = true;
               foundMatch();
