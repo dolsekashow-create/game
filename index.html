@@ -2297,6 +2297,7 @@
 
       async function handleSignOut() {
         await sb.auth.signOut();
+        window.location.href = window.location.pathname;
       }
 
       // لو لسه في الـ background loading، اعرض login في الوقت ده
@@ -2525,8 +2526,7 @@
 
               {/* تذييل صغير */}
               <div className="text-center mt-8 text-xs text-gray-600 font-display">
-                ⚜ DUELIST'S GAMBIT ⚜<br/>
-                <span className="text-gray-700">v1.0 — نموذج أولي</span>
+                ⚜ DUELIST'S GAMBIT ⚜
               </div>
             </div>
 
@@ -2794,7 +2794,7 @@
           </main>
 
           <footer className="text-center py-2 text-xs text-gray-600 font-display border-t border-yellow-900/20">
-            ⚜ Duelist's Gambit — نموذج أولي قابل للتطوير ⚜
+            ⚜ Duelist's Gambit ⚜
           </footer>
         </div>
       );
