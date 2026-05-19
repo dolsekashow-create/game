@@ -934,10 +934,11 @@
     const SUPABASE_ANON_KEY = 'sb_publishable_RueQN20GRQjDKnnDiX0Isg_sEU3YHm3';
     const sb = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY, {
       auth: {
-        flowType: 'pkce',
+        flowType: 'implicit',
         detectSessionInUrl: true,
         persistSession: true,
         autoRefreshToken: true,
+        storage: window.localStorage,
       }
     });
 
@@ -2233,22 +2234,15 @@
           ]);
           if (!alive) return;
 
-          // PKCE: لو في ?code= في الـ URL، يعني رجعنا من OAuth
-          // نخلّي Supabase يقرأه بنفسه عبر exchangeCodeForSession
-          const urlParams = new URLSearchParams(window.location.search);
-          const code = urlParams.get('code');
-          if (code) {
-            try {
-              // Supabase يحوّل الـ code لـ session — ده الخطوة الأساسية
-              const { data, error } = await sb.auth.exchangeCodeForSession(window.location.href);
-              if (error) console.warn('exchangeCodeForSession error:', error);
-            } catch (e) {
-              console.warn('exchangeCodeForSession exception:', e);
-            }
-            // امسح الـ code من الـ URL بعد ما Supabase قرأه
-            window.history.replaceState(null, '', window.location.pathname);
-            if (!alive) return;
-            // onAuthStateChange هيشتغل تلقائياً بعد exchangeCodeForSession
+          // implicit flow: الـ access_token في الـ hash — Supabase يقرأه تلقائياً
+          // بس محتاجين ننتظر شوية عشان onAuthStateChange يشتغل أول
+          const hasHash = window.location.hash && window.location.hash.includes('access_token=');
+          if (hasHash) {
+            // امسح الـ hash بعد ثانية عشان Supabase يقراه الأول
+            setTimeout(() => {
+              window.history.replaceState(null, '', window.location.pathname);
+            }, 3000);
+            // مش محتاجين نعمل حاجة تانية — onAuthStateChange هيشتغل تلقائياً
             return;
           }
 
@@ -2287,7 +2281,6 @@
             provider: 'google',
             options: {
               redirectTo: 'https://game-wheat-three.vercel.app/',
-              skipBrowserRedirect: false,
             }
           });
           if (error) {
