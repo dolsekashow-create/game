@@ -1819,11 +1819,22 @@
       }, []);
 
       async function handleSignIn() {
-        const { error } = await sb.auth.signInWithOAuth({
-          provider: 'google',
-          options: { redirectTo: window.location.origin + window.location.pathname }
-        });
-        if (error) alert('فشل تسجيل الدخول: ' + error.message);
+        try {
+          const { error } = await sb.auth.signInWithOAuth({
+            provider: 'google',
+            options: { redirectTo: window.location.origin + window.location.pathname }
+          });
+          if (error) {
+            if (error.message?.includes('provider is not enabled') || error.message?.includes('Unsupported provider')) {
+              alert('Google OAuth غير مفعّل في Supabase.\n\nاتبع الخطوات في README.md قسم "المرحلة 1":\n1) فعّل Google Provider في Supabase Dashboard\n2) ضيف Client ID و Secret من Google Cloud Console');
+            } else {
+              alert('فشل تسجيل الدخول: ' + error.message);
+            }
+          }
+        } catch (e) {
+          alert('خطأ غير متوقع في تسجيل الدخول. راجع console للتفاصيل.');
+          console.error(e);
+        }
       }
 
       async function handleSignOut() {
