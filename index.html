@@ -932,7 +932,14 @@
     // ════════════════════════════════════════════════════════════
     const SUPABASE_URL = 'https://gioipkyeaqhqimnzwxnl.supabase.co';
     const SUPABASE_ANON_KEY = 'sb_publishable_RueQN20GRQjDKnnDiX0Isg_sEU3YHm3';
-    const sb = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+    const sb = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY, {
+      auth: {
+        flowType: 'pkce',
+        detectSessionInUrl: true,
+        persistSession: true,
+        autoRefreshToken: true,
+      }
+    });
 
     // ════════════════════════════════════════════════════════════
     // CARD DATABASE — جميع الكروت (20 كارت) — القيم الافتراضية
@@ -2226,15 +2233,32 @@
           ]);
           if (!alive) return;
 
+          // PKCE: لو في ?code= في الـ URL، يعني رجعنا من OAuth
+          // Supabase detectSessionInUrl=true هيتعامل معاه تلقائياً
+          // بس نديه وقت كافي عشان يكمل
+          const urlParams = new URLSearchParams(window.location.search);
+          const hasCode = urlParams.has('code');
+          if (hasCode) {
+            // امسح الـ code من الـ URL عشان ما يتشاركش
+            window.history.replaceState(null, '', window.location.pathname);
+            // انتظر Supabase يعالج الـ code ويطلق onAuthStateChange
+            await new Promise(res => setTimeout(res, 2000));
+            if (!alive) return;
+          }
+
           // فحص جلسة موجودة (للمستخدم اللي سجّل دخوله من قبل)
-          // onAuthStateChange هيمسك الـ OAuth hash تلقائياً، مش محتاجين نعمل حاجة
           try {
             const { data: { session } } = await sb.auth.getSession();
-            // لو مفيش session والـ onAuthStateChange هيجيب واحدة من الـ hash، هو هيتكلم
-            // لو مفيش أي حاجة، نفضل على login
-            if (alive && !session) {
-              // انتظر شوية بسيطة في حالة كان في hash جاي
-              await new Promise(res => setTimeout(res, 500));
+            if (alive && session?.user && bootState !== 'ready') {
+              setUser(session.user);
+              try {
+                const { data: p } = await sb.from('profiles').select('*').eq('id', session.user.id).maybeSingle();
+                if (alive) setProfile(p);
+              } catch (e) {
+                console.warn('Profile fetch failed:', e);
+              } finally {
+                if (alive) setBootState('ready');
+              }
             }
           } catch (e) {
             console.warn('getSession error:', e);
@@ -2255,7 +2279,10 @@
         try {
           const { error } = await sb.auth.signInWithOAuth({
             provider: 'google',
-            options: { redirectTo: 'https://game-wheat-three.vercel.app/' }
+            options: {
+              redirectTo: 'https://game-wheat-three.vercel.app/',
+              skipBrowserRedirect: false,
+            }
           });
           if (error) {
             if (error.message?.includes('not enabled') || error.message?.includes('Unsupported provider')) {
