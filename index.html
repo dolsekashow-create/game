@@ -2289,6 +2289,177 @@
     // ════════════════════════════════════════════════════════════
     // MatchmakingModal — البحث عن لاعب (Supabase Realtime)
     // ════════════════════════════════════════════════════════════
+    // ════════════════════════════════════════════════════════════
+    // AdminAddCoinsModal — شحن لاعب بـ Player ID (للأدمن فقط)
+    // ════════════════════════════════════════════════════════════
+    function AdminAddCoinsModal({ onClose }) {
+      const [playerId, setPlayerId] = React.useState('#');
+      const [amount, setAmount] = React.useState('');
+      const [busy, setBusy] = React.useState(false);
+      const [result, setResult] = React.useState(null);
+      const [error, setError] = React.useState(null);
+
+      // الباقات الجاهزة للضغطة السريعة
+      const quickAmounts = [500, 1000, 2500, 5000, 7500];
+
+      async function handleSubmit() {
+        setError(null);
+        setResult(null);
+
+        const cleanedId = playerId.trim().toUpperCase();
+        const amt = parseInt(amount, 10);
+
+        if (!cleanedId || cleanedId === '#') {
+          setError('اكتب Player ID');
+          return;
+        }
+        if (isNaN(amt) || amt === 0) {
+          setError('اكتب مبلغ صحيح');
+          return;
+        }
+
+        setBusy(true);
+        const { data, error: rpcError } = await sb.rpc('admin_add_coins', {
+          target_player_id: cleanedId,
+          amount: amt,
+        });
+        setBusy(false);
+
+        if (rpcError) {
+          setError(rpcError.message || 'حصل خطأ');
+          return;
+        }
+        if (data?.success) {
+          setResult(data);
+          setPlayerId('#');
+          setAmount('');
+        } else {
+          setError('حصل خطأ غير متوقع');
+        }
+      }
+
+      return (
+        <div className="modal-backdrop" onClick={onClose}>
+          <div className="modal" onClick={e => e.stopPropagation()} style={{ maxWidth: '420px' }}>
+            <h2 className="font-display text-xl text-yellow-400 mb-1 text-center">💰 شحن لاعب</h2>
+            <p className="text-center text-gray-500 text-sm font-body mb-4">
+              ادخل Player ID والمبلغ
+            </p>
+
+            {/* Player ID */}
+            <div className="mb-3">
+              <label className="block text-xs text-gray-400 mb-1">معرّف اللاعب (Player ID)</label>
+              <input
+                type="text"
+                value={playerId}
+                onChange={e => {
+                  let v = e.target.value.toUpperCase();
+                  if (v && !v.startsWith('#')) v = '#' + v.replace(/^#+/, '');
+                  setPlayerId(v);
+                }}
+                placeholder="#ABC123"
+                className="w-full px-3 py-2 rounded font-mono text-yellow-300"
+                style={{
+                  background: 'rgba(0,0,0,0.4)',
+                  border: '1px solid #5a4a2a',
+                  letterSpacing: '0.1em',
+                  fontSize: '1.1rem',
+                  textAlign: 'center',
+                }}
+                disabled={busy}
+              />
+            </div>
+
+            {/* المبلغ */}
+            <div className="mb-3">
+              <label className="block text-xs text-gray-400 mb-1">المبلغ (يمكن سالب للخصم)</label>
+              <input
+                type="number"
+                value={amount}
+                onChange={e => setAmount(e.target.value)}
+                placeholder="1000"
+                className="w-full px-3 py-2 rounded font-mono text-yellow-300"
+                style={{
+                  background: 'rgba(0,0,0,0.4)',
+                  border: '1px solid #5a4a2a',
+                  fontSize: '1.1rem',
+                  textAlign: 'center',
+                }}
+                disabled={busy}
+              />
+
+              {/* أزرار سريعة */}
+              <div className="flex gap-1 flex-wrap mt-2">
+                {quickAmounts.map(a => (
+                  <button
+                    key={a}
+                    type="button"
+                    onClick={() => setAmount(String(a))}
+                    disabled={busy}
+                    style={{
+                      padding: '0.25rem 0.6rem',
+                      fontSize: '0.75rem',
+                      background: 'rgba(201,169,97,0.1)',
+                      border: '1px solid #5a4a2a',
+                      borderRadius: '4px',
+                      color: '#c9a961',
+                      cursor: 'pointer',
+                      fontFamily: 'monospace',
+                    }}
+                  >
+                    +{a.toLocaleString('en-US')}
+                  </button>
+                ))}
+              </div>
+            </div>
+
+            {/* رسالة خطأ */}
+            {error && (
+              <div className="mb-3 p-3 rounded text-sm" style={{
+                background: 'rgba(180,40,40,0.15)',
+                border: '1px solid #7a2020',
+                color: '#ff9090',
+              }}>
+                ⚠ {error}
+              </div>
+            )}
+
+            {/* رسالة نجاح */}
+            {result && (
+              <div className="mb-3 p-3 rounded text-sm" style={{
+                background: 'rgba(40,140,80,0.15)',
+                border: '1px solid #2a6a4a',
+                color: '#9eeac0',
+              }}>
+                ✓ تم تحويل <b>{result.amount_added.toLocaleString('en-US')}</b> عملة
+                إلى <b className="text-yellow-300">{result.display_name}</b> ({result.player_id})
+                <br />
+                <span style={{ color: '#7ac09a' }}>
+                  الرصيد القديم: {result.old_balance.toLocaleString('en-US')}
+                  → الجديد: <b>{result.new_balance.toLocaleString('en-US')}</b>
+                </span>
+              </div>
+            )}
+
+            {/* الأزرار */}
+            <div className="flex gap-2 justify-end mt-4">
+              <button className="btn" onClick={onClose} disabled={busy}>
+                إغلاق
+              </button>
+              <button
+                className="btn"
+                onClick={handleSubmit}
+                disabled={busy}
+                style={{ background: 'linear-gradient(180deg, #c9a961, #8a7340)', color: '#1a1024', fontWeight: 'bold' }}
+              >
+                {busy ? '... جاري التنفيذ' : '✓ تأكيد الشحن'}
+              </button>
+            </div>
+          </div>
+        </div>
+      );
+    }
+
     function MatchmakingModal({ matchmaking, matchTimer, setMatchTimer, setMatchmaking, setMode, onMatched, botName, user }) {
       const timerRef = React.useRef(null);
       const channelRef = React.useRef(null);
@@ -2834,6 +3005,7 @@
       // ── State للقائمة المنسدلة ──
       const [showProfileMenu, setShowProfileMenu] = useState(false);
       const [showRecharge, setShowRecharge] = useState(false);
+      const [showAdminCoins, setShowAdminCoins] = useState(false);
       const [matchmaking, setMatchmaking] = useState(null); // null | 'searching' | 'found' | 'bot'
       const [matchTimer, setMatchTimer] = useState(0);
       const [botName] = useState(() => {
@@ -2926,6 +3098,11 @@
                     <a href="admin.html" className="profile-menu-item" style={{ textDecoration: 'none' }}>
                       <span>⚙</span><span>لوحة التحكم</span>
                     </a>
+                  )}
+                  {profile?.is_admin && (
+                    <div className="profile-menu-item" onClick={() => { setShowAdminCoins(true); setShowProfileMenu(false); }}>
+                      <span>💰</span><span>شحن لاعب</span>
+                    </div>
                   )}
                   <div className="profile-menu-item" onClick={() => setShowRules(true)}>
                     <span>📜</span><span>قواعد اللعبة</span>
@@ -3030,6 +3207,11 @@
                 </a>
               </div>
             </div>
+
+            {/* ══ مودال شحن لاعب (للأدمن) ══ */}
+            {showAdminCoins && (
+              <AdminAddCoinsModal onClose={() => setShowAdminCoins(false)} />
+            )}
 
             {/* ══ مودال شحن العملات ══ */}
             {showRecharge && (
