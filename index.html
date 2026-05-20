@@ -2155,55 +2155,72 @@
             </div>
           )}
 
-          {/* وحش مخفي على الخصم — بطاقة مقلوبة */}
+          {/* وحش مخفي على الخصم — بطاقة مقلوبة بصورة الـ card back */}
           {isHiddenFromViewer && (
             <div style={{
               position: 'absolute', inset: '6%',
               borderRadius: '8px',
-              background: u.playerNum === 1
-                ? 'linear-gradient(135deg, #4a3010 0%, #2a1d0a 100%)'
-                : 'linear-gradient(135deg, #1d2855 0%, #0f1535 100%)',
               border: `2px solid ${u.playerNum === 1 ? 'var(--p1)' : 'var(--p2)'}`,
-              display: 'flex', flexDirection: 'column',
-              alignItems: 'center', justifyContent: 'center',
               boxShadow: '0 2px 12px rgba(0,0,0,0.5)',
+              overflow: 'hidden',
             }}>
-              <div style={{ fontSize: '1.4rem', opacity: 0.7 }}>⚜</div>
-              <div style={{
-                fontFamily: 'Cinzel, serif', fontSize: '0.55rem',
-                color: u.playerNum === 1 ? 'var(--p1)' : 'var(--p2)',
-                marginTop: '4px', opacity: 0.8
-              }}>?</div>
+              {CARD_BACK_IMAGE ? (
+                <img src={CARD_BACK_IMAGE} alt="?" style={{ width: '100%', height: '100%', objectFit: 'cover', borderRadius: '6px' }} />
+              ) : (
+                <div style={{
+                  width: '100%', height: '100%',
+                  background: u.playerNum === 1
+                    ? 'linear-gradient(135deg, #4a3010 0%, #2a1d0a 100%)'
+                    : 'linear-gradient(135deg, #1d2855 0%, #0f1535 100%)',
+                  display: 'flex', flexDirection: 'column',
+                  alignItems: 'center', justifyContent: 'center',
+                }}>
+                  <div style={{ fontSize: '1.4rem', opacity: 0.7 }}>⚜</div>
+                  <div style={{
+                    fontFamily: 'Cinzel, serif', fontSize: '0.55rem',
+                    color: u.playerNum === 1 ? 'var(--p1)' : 'var(--p2)',
+                    marginTop: '4px', opacity: 0.8
+                  }}>?</div>
+                </div>
+              )}
             </div>
           )}
 
-          {/* وحش بتاعك مقلوب — تشوفه أنت بس مع زرار كشف */}
+          {/* وحش بتاعك مقلوب — بيبان صورة الـ card back + زرار كشف */}
           {isOwnFaceDown && (
             <div
               className={`piece p${u.playerNum} ${u.summoningSickness || u.snareTimer > 0 ? 'sick' : ''}`}
-              style={{ outline: '2px dashed rgba(201,169,97,0.5)', outlineOffset: '2px' }}
+              style={{ outline: '2px dashed rgba(100,220,100,0.6)', outlineOffset: '2px', overflow: 'hidden' }}
             >
-              {card?.image ? (
-                <>
-                  <img src={card.image} alt={card.name_ar} className="piece-image-bg" style={{ opacity: 0.7 }} />
-                  <div className="piece-name-overlay">{card.name_ar}</div>
-                  <div className="piece-stats-overlay">
-                    <span className="stat-atk">⚔{u.atk}</span>
-                    <span className="stat-hp">♥{u.hp}</span>
-                  </div>
-                </>
-              ) : (
-                <>
-                  <div className="piece-name">
-                    {card?.icon || '?'}
-                    <div style={{ fontSize: '0.5rem', marginTop: '2px' }}>{card?.name_ar}</div>
-                  </div>
-                  <div className="piece-stats">
-                    <span className="stat-atk">⚔{u.atk}</span>
-                    <span className="stat-hp">♥{u.hp}</span>
-                  </div>
-                </>
+              {/* صورة الورقة الأصلية شبه شفافة في الخلف */}
+              {card?.image && (
+                <img src={card.image} alt={card.name_ar} className="piece-image-bg" style={{ opacity: 0.25 }} />
               )}
+              {/* صورة الـ card back فوقها */}
+              {CARD_BACK_IMAGE ? (
+                <img src={CARD_BACK_IMAGE} alt="مقلوب" className="piece-image-bg" style={{ opacity: 0.75 }} />
+              ) : (
+                <div style={{
+                  position: 'absolute', inset: 0,
+                  display: 'flex', flexDirection: 'column',
+                  alignItems: 'center', justifyContent: 'center',
+                  background: 'rgba(0,0,0,0.5)',
+                }}>
+                  <div style={{ fontSize: '1.2rem', opacity: 0.7 }}>⚜</div>
+                </div>
+              )}
+              {/* اسم الورقة + stats شفافة في الأسفل (بس أنت اللي تشوفها) */}
+              <div style={{
+                position: 'absolute', bottom: 0, left: 0, right: 0,
+                padding: '2px 4px',
+                background: 'linear-gradient(0deg, rgba(0,0,0,0.9) 0%, rgba(0,0,0,0) 100%)',
+                display: 'flex', justifyContent: 'space-between',
+                fontFamily: 'JetBrains Mono, monospace', fontSize: '0.62rem', fontWeight: 700,
+                zIndex: 3,
+              }}>
+                <span className="stat-atk">⚔{u.atk}</span>
+                <span className="stat-hp">♥{u.hp}</span>
+              </div>
               {/* زرار الكشف */}
               {u.playerNum === currentPlayer && onFlip && (
                 <button
@@ -3619,19 +3636,15 @@
                   kingMaxHp={KING_TEMPLATE.maxHp}
                   customName={isOnlineMode ? onlineGame.opponentName : null}
                 />
-                {/* كروت الخصم — مقلوبة في 2p/online، مكشوفة في 1p */}
+                {/* كروت الخصم — مقلوبة دايماً */}
                 <div className="flex gap-1 justify-center mt-2 flex-wrap overflow-x-auto py-1">
                   {state.players[otherPlayerNum].hand.map((cardId, i) =>
-                    mode === '1p' ? (
-                      <CardView key={`ai-${i}`} card={CARD_BY_ID[cardId]} selected={false} affordable={true} onClick={() => {}} />
+                    CARD_BACK_IMAGE ? (
+                      <div key={i} style={{ width: '40px', height: '58px', borderRadius: '4px', overflow: 'hidden', border: '1.5px solid var(--gold-dim)', boxShadow: '0 3px 8px rgba(0,0,0,0.5)' }}>
+                        <img src={CARD_BACK_IMAGE} alt="card back" style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
+                      </div>
                     ) : (
-                      CARD_BACK_IMAGE ? (
-                        <div key={i} style={{ width: '40px', height: '58px', borderRadius: '4px', overflow: 'hidden', border: '1.5px solid var(--gold-dim)', boxShadow: '0 3px 8px rgba(0,0,0,0.5)' }}>
-                          <img src={CARD_BACK_IMAGE} alt="card back" style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
-                        </div>
-                      ) : (
-                        <div key={i} className="card-back" style={{ width: '40px', minHeight: '58px', fontSize: '0.9rem' }}>⚜</div>
-                      )
+                      <div key={i} className="card-back" style={{ width: '40px', minHeight: '58px', fontSize: '0.9rem' }}>⚜</div>
                     )
                   )}
                 </div>
