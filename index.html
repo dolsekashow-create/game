@@ -190,6 +190,51 @@
       top: -2px;
       right: -2px;
       font-size: 0.7rem;
+      z-index: 3;
+    }
+
+    /* صورة الوحش على الرقعة */
+    .piece-image-bg {
+      position: absolute;
+      inset: 0;
+      width: 100%;
+      height: 100%;
+      object-fit: cover;
+      border-radius: 6px;
+      z-index: 0;
+    }
+    .piece-name-overlay {
+      position: absolute;
+      top: 0;
+      left: 0;
+      right: 0;
+      padding: 2px 3px;
+      background: linear-gradient(180deg, rgba(0,0,0,0.85) 0%, rgba(0,0,0,0) 100%);
+      font-family: 'Cinzel', serif;
+      font-size: 0.5rem;
+      font-weight: 700;
+      text-align: center;
+      color: #f5d97f;
+      text-shadow: 0 1px 2px rgba(0,0,0,0.9);
+      z-index: 2;
+      border-radius: 6px 6px 0 0;
+      line-height: 1.1;
+    }
+    .piece-stats-overlay {
+      position: absolute;
+      bottom: 0;
+      left: 0;
+      right: 0;
+      padding: 2px 4px;
+      background: linear-gradient(0deg, rgba(0,0,0,0.85) 0%, rgba(0,0,0,0) 100%);
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      font-family: 'JetBrains Mono', monospace;
+      font-size: 0.7rem;
+      font-weight: 700;
+      z-index: 2;
+      border-radius: 0 0 6px 6px;
     }
 
     /* Trap on board */
@@ -2078,16 +2123,35 @@
           {/* وحش */}
           {u && (
             <div className={`piece p${u.playerNum} ${u.isKing ? 'king' : ''} ${u.summoningSickness || u.snareTimer > 0 ? 'sick' : ''}`}>
-              <div className="piece-name">
-                {u.isKing ? '👑' : (card?.icon || '?')}
-                <div style={{ fontSize: '0.5rem', marginTop: '2px' }}>
-                  {u.isKing ? 'الملك' : card?.name_ar}
-                </div>
-              </div>
-              <div className="piece-stats">
-                <span className="stat-atk">⚔{u.atk}</span>
-                <span className="stat-hp">♥{u.hp}</span>
-              </div>
+              {card?.image ? (
+                <>
+                  {/* صورة الوحش كخلفية */}
+                  <img src={card.image} alt={card.name_ar} className="piece-image-bg" />
+                  {/* اسم على الراس */}
+                  <div className="piece-name-overlay">
+                    {u.isKing ? '👑 الملك' : card.name_ar}
+                  </div>
+                  {/* الـ stats في الأسفل */}
+                  <div className="piece-stats-overlay">
+                    <span className="stat-atk">⚔{u.atk}</span>
+                    <span className="stat-hp">♥{u.hp}</span>
+                  </div>
+                </>
+              ) : (
+                <>
+                  {/* fallback: لو مفيش صورة، الإيموجي زي الأول */}
+                  <div className="piece-name">
+                    {u.isKing ? '👑' : (card?.icon || '?')}
+                    <div style={{ fontSize: '0.5rem', marginTop: '2px' }}>
+                      {u.isKing ? 'الملك' : card?.name_ar}
+                    </div>
+                  </div>
+                  <div className="piece-stats">
+                    <span className="stat-atk">⚔{u.atk}</span>
+                    <span className="stat-hp">♥{u.hp}</span>
+                  </div>
+                </>
+              )}
             </div>
           )}
         </div>
