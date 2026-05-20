@@ -94,6 +94,13 @@
     .board-cell.dark {
       background: linear-gradient(135deg, #15110d 0%, #0d0a07 100%);
     }
+    /* لما الرقعة عليها صورة خلفية: الخانات شبه شفافة عشان الصورة تبان */
+    .board-with-image .board-cell.light {
+      background: rgba(120, 100, 70, 0.18);
+    }
+    .board-with-image .board-cell.dark {
+      background: rgba(0, 0, 0, 0.38);
+    }
     .board-cell.valid-move {
       box-shadow: inset 0 0 0 3px rgba(105, 200, 105, 0.6);
       background: rgba(105, 200, 105, 0.08);
@@ -1108,6 +1115,7 @@
     let CARDS = [...DEFAULT_CARDS];
     let CARD_BY_ID = Object.fromEntries(CARDS.map(c => [c.id, c]));
     let CARD_BACK_IMAGE = null; // رابط صورة ضهر الكروت (من Supabase أو null)
+    let BOARD_IMAGE = null; // رابط صورة الرقعة (من Supabase أو null)
 
     // تحميل البيانات من Supabase. لو فشل، نستعمل الافتراضات.
     async function loadFromSupabase() {
@@ -1149,6 +1157,9 @@
           .maybeSingle();
         if (!settingsErr && settingsData?.card_back_url) {
           CARD_BACK_IMAGE = settingsData.card_back_url;
+        }
+        if (!settingsErr && settingsData?.board_image_url) {
+          BOARD_IMAGE = settingsData.board_image_url;
         }
         return { ok: true };
       } catch (e) {
@@ -3007,6 +3018,7 @@
       useEffect(() => {
         if (state.currentPlayer !== previousPlayer && !state.winner) {
           setPreviousPlayer(state.currentPlayer);
+          setFlippedCardIdx(null); // ارجع كل الكروت على ضهرها
           if (mode === '1p') {
             if (state.currentPlayer === 1) setShowPassScreen(true);
           } else if (mode === '2p') {
@@ -3070,6 +3082,7 @@
       const [showProfileMenu, setShowProfileMenu] = useState(false);
       const [showRecharge, setShowRecharge] = useState(false);
       const [showAdminCoins, setShowAdminCoins] = useState(false);
+      const [flippedCardIdx, setFlippedCardIdx] = useState(null); // أي كارت متقلوب على وشه دلوقتي
       const [matchmaking, setMatchmaking] = useState(null); // null | 'searching' | 'found' | 'bot'
       const [matchTimer, setMatchTimer] = useState(0);
       const [botName] = useState(() => {
@@ -3536,8 +3549,15 @@
 
               {/* الرقعة */}
               <div className="relative" style={{ maxWidth: 'min(85vh, 100%)' }}>
-                <div className="grid grid-cols-8 gap-0 border-4 border-yellow-700 bg-black"
-                     style={{ width: 'min(85vh, 95vw)', aspectRatio: '1', boxShadow: '0 0 40px rgba(201,169,97,0.2)' }}>
+                <div className={`grid grid-cols-8 gap-0 border-4 border-yellow-700 bg-black ${BOARD_IMAGE ? 'board-with-image' : ''}`}
+                     style={{
+                       width: 'min(85vh, 95vw)',
+                       aspectRatio: '1',
+                       boxShadow: '0 0 40px rgba(201,169,97,0.2)',
+                       backgroundImage: BOARD_IMAGE ? `url(${BOARD_IMAGE})` : undefined,
+                       backgroundSize: 'cover',
+                       backgroundPosition: 'center',
+                     }}>
                   {/* نقلب الرقعة عشان اللاعب الحالي دايماً يشوف صفه الخلفي تحت */}
                   {Array.from({ length: BOARD_SIZE }).map((_, displayRow) => {
                     let flip;
@@ -3613,19 +3633,76 @@
                     const card = CARD_BY_ID[cardId];
                     const affordable = currentPlayerData.mana >= card.cost;
                     const selected = state.pendingPlay && state.pendingPlay.cardId === cardId;
+                    const isFlippedUp = flippedCardIdx === idx;
+
+                    // الكارت مقلوب على وشه → اعرض الكارت كامل + click يلعبها
+                    if (isFlippedUp) {
+                      return (
+                        <div key={`${cardId}-${idx}`} style={{ position: 'relative' }}>
+                          <CardView
+                            card={card}
+                            selected={selected}
+                            affordable={affordable && isMyTurn}
+                            onClick={() => {
+                              if (!affordable) return;
+                              if (mode === '1p' && state.currentPlayer === 2) return;
+                              if (!isMyTurn) return;
+                              syncedDispatch({ type: 'SELECT_CARD', cardId });
+                              setFlippedCardIdx(null);
+                            }}
+                          />
+                          {/* زرار "ارجع على ضهره" */}
+                          <button
+                            onClick={(e) => { e.stopPropagation(); setFlippedCardIdx(null); }}
+                            style={{
+                              position: 'absolute',
+                              top: '-8px',
+                              right: '-8px',
+                              width: '22px', height: '22px',
+                              borderRadius: '50%',
+                              background: '#3a2d1f',
+                              border: '1px solid #c9a961',
+                              color: '#c9a961',
+                              fontSize: '0.8rem',
+                              cursor: 'pointer',
+                              display: 'flex', alignItems: 'center', justifyContent: 'center',
+                              zIndex: 5,
+                            }}
+                            title="اقلب على ضهره"
+                          >↻</button>
+                        </div>
+                      );
+                    }
+
+                    // الكارت على ضهره → اعرض الـ card back
                     return (
-                      <CardView
+                      <div
                         key={`${cardId}-${idx}`}
-                        card={card}
-                        selected={selected}
-                        affordable={affordable && isMyTurn}
                         onClick={() => {
-                          if (!affordable) return;
                           if (mode === '1p' && state.currentPlayer === 2) return;
                           if (!isMyTurn) return;
-                          syncedDispatch({ type: 'SELECT_CARD', cardId });
+                          setFlippedCardIdx(idx);
                         }}
-                      />
+                        style={{
+                          width: '88px', height: '128px',
+                          borderRadius: '6px',
+                          overflow: 'hidden',
+                          border: '2px solid var(--gold-dim)',
+                          boxShadow: '0 4px 10px rgba(0,0,0,0.6)',
+                          cursor: isMyTurn ? 'pointer' : 'not-allowed',
+                          flexShrink: 0,
+                          transition: 'transform 0.15s ease',
+                        }}
+                        onMouseEnter={e => { if (isMyTurn) e.currentTarget.style.transform = 'translateY(-4px)'; }}
+                        onMouseLeave={e => { e.currentTarget.style.transform = 'translateY(0)'; }}
+                        title="اضغط لقلب الكارت"
+                      >
+                        {CARD_BACK_IMAGE ? (
+                          <img src={CARD_BACK_IMAGE} alt="card back" style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
+                        ) : (
+                          <div className="card-back" style={{ width: '100%', height: '100%', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '2.5rem' }}>⚜</div>
+                        )}
+                      </div>
                     );
                   })}
                 </div>
