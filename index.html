@@ -3010,6 +3010,222 @@
       );
     }
 
+    // ════════════════════════════════════════════════════════════
+    // LeaderboardSection — ترتيب أفضل اللاعبين + جائزة
+    // ════════════════════════════════════════════════════════════
+    function LeaderboardSection({ currentUserId }) {
+      const [players, setPlayers] = React.useState([]);
+      const [loading, setLoading] = React.useState(true);
+      const [timeLeft, setTimeLeft] = React.useState('');
+
+      // حساب الوقت المتبقي حتى نهاية الأسبوع (الجمعة 11:59 م)
+      React.useEffect(() => {
+        function calcTime() {
+          const now = new Date();
+          const day = now.getDay(); // 0=أحد .. 5=جمعة
+          const daysUntilFri = (5 - day + 7) % 7 || 7;
+          const fri = new Date(now);
+          fri.setDate(now.getDate() + daysUntilFri);
+          fri.setHours(23, 59, 59, 0);
+          const diff = fri - now;
+          const h = Math.floor(diff / 3600000);
+          const m = Math.floor((diff % 3600000) / 60000);
+          const s = Math.floor((diff % 60000) / 1000);
+          const d = Math.floor(h / 24);
+          if (d > 0) setTimeLeft(`${d}ي ${h % 24}س ${m}د`);
+          else setTimeLeft(`${String(h).padStart(2,'0')}:${String(m).padStart(2,'0')}:${String(s).padStart(2,'0')}`);
+        }
+        calcTime();
+        const t = setInterval(calcTime, 1000);
+        return () => clearInterval(t);
+      }, []);
+
+      // جيب أفضل 10 لاعبين من Supabase
+      React.useEffect(() => {
+        let alive = true;
+        (async () => {
+          try {
+            const { data } = await sb
+              .from('profiles')
+              .select('id, display_name, avatar_url, games_won, games_played, rating')
+              .order('games_won', { ascending: false })
+              .limit(10);
+            if (alive && data) setPlayers(data);
+          } catch(e) {}
+          finally { if (alive) setLoading(false); }
+        })();
+        return () => { alive = false; };
+      }, []);
+
+      const medals = ['🥇','🥈','🥉'];
+      const rankColors = ['#FFD700','#C0C0C0','#CD7F32'];
+
+      return (
+        <div style={{ marginTop: '1.5rem' }}>
+          {/* هيدر البطولة */}
+          <div style={{
+            background: 'linear-gradient(135deg, #2a1a0a 0%, #1a1020 50%, #0a1a2a 100%)',
+            border: '1.5px solid rgba(201,169,97,0.5)',
+            borderRadius: '14px',
+            overflow: 'hidden',
+            boxShadow: '0 8px 32px rgba(0,0,0,0.5), inset 0 1px 0 rgba(201,169,97,0.15)',
+          }}>
+            {/* بانر الجائزة */}
+            <div style={{
+              background: 'linear-gradient(90deg, #4a2800 0%, #2a1a00 40%, #1a0a00 100%)',
+              padding: '0.9rem 1rem',
+              display: 'flex', alignItems: 'center', justifyContent: 'space-between',
+              borderBottom: '1px solid rgba(201,169,97,0.3)',
+            }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '0.6rem' }}>
+                <div style={{ fontSize: '2rem' }}>🏆</div>
+                <div>
+                  <div style={{ fontFamily: 'Cinzel, serif', fontSize: '0.95rem', color: '#e8c876', fontWeight: 700 }}>
+                    بطولة المحاربين
+                  </div>
+                  <div style={{ fontFamily: 'Amiri, serif', fontSize: '0.75rem', color: '#c9a961', opacity: 0.8 }}>
+                    جائزة الأسبوع
+                  </div>
+                </div>
+              </div>
+              <div style={{ textAlign: 'center' }}>
+                <div style={{
+                  fontFamily: 'JetBrains Mono, monospace', fontWeight: 900,
+                  fontSize: '1.3rem', color: '#FFD700',
+                  textShadow: '0 0 12px rgba(255,215,0,0.6)',
+                }}>1000 ج</div>
+                <div style={{ fontSize: '0.6rem', color: '#c9a961', fontFamily: 'Amiri,serif' }}>جنيه مصري</div>
+              </div>
+            </div>
+
+            {/* عداد تنازلي */}
+            <div style={{
+              background: 'rgba(0,0,0,0.4)',
+              padding: '0.5rem 1rem',
+              display: 'flex', alignItems: 'center', justifyContent: 'space-between',
+              borderBottom: '1px solid rgba(201,169,97,0.15)',
+            }}>
+              <div style={{ fontFamily: 'Amiri, serif', fontSize: '0.78rem', color: '#8a8275' }}>
+                ⏳ ينتهي خلال:
+              </div>
+              <div style={{
+                fontFamily: 'JetBrains Mono, monospace', fontWeight: 700,
+                fontSize: '0.88rem', color: '#e8c876',
+                background: 'rgba(201,169,97,0.1)',
+                padding: '2px 10px', borderRadius: '999px',
+                border: '1px solid rgba(201,169,97,0.3)',
+              }}>{timeLeft}</div>
+            </div>
+
+            {/* قائمة اللاعبين */}
+            <div style={{ padding: '0.5rem 0' }}>
+              {loading ? (
+                <div style={{ textAlign: 'center', padding: '1.5rem', color: '#8a8275', fontFamily: 'Amiri,serif' }}>
+                  ⚜ جاري التحميل...
+                </div>
+              ) : players.length === 0 ? (
+                <div style={{ textAlign: 'center', padding: '1.5rem', color: '#8a8275', fontFamily: 'Amiri,serif' }}>
+                  لا يوجد لاعبون بعد. كن الأول!
+                </div>
+              ) : players.map((p, i) => {
+                const isMe = p.id === currentUserId;
+                const winRate = p.games_played > 0 ? Math.round((p.games_won / p.games_played) * 100) : 0;
+                const isTop3 = i < 3;
+                return (
+                  <div key={p.id} style={{
+                    display: 'flex', alignItems: 'center', gap: '0.7rem',
+                    padding: '0.55rem 1rem',
+                    background: isMe ? 'rgba(201,169,97,0.1)' : isTop3 ? 'rgba(255,215,0,0.03)' : 'transparent',
+                    borderBottom: i < players.length - 1 ? '1px solid rgba(201,169,97,0.07)' : 'none',
+                    borderRight: isMe ? '3px solid #c9a961' : isTop3 ? `3px solid ${rankColors[i]}` : '3px solid transparent',
+                    transition: 'background 0.15s',
+                  }}>
+                    {/* الترتيب */}
+                    <div style={{
+                      width: '26px', textAlign: 'center', flexShrink: 0,
+                      fontFamily: isTop3 ? 'serif' : 'JetBrains Mono, monospace',
+                      fontSize: isTop3 ? '1.15rem' : '0.8rem',
+                      fontWeight: 700,
+                      color: isTop3 ? rankColors[i] : '#5a5040',
+                    }}>
+                      {isTop3 ? medals[i] : `${i+1}`}
+                    </div>
+
+                    {/* صورة اللاعب */}
+                    {p.avatar_url ? (
+                      <img src={p.avatar_url} alt="" style={{
+                        width: '32px', height: '32px', borderRadius: '50%', flexShrink: 0,
+                        border: `2px solid ${isTop3 ? rankColors[i] : isMe ? '#c9a961' : 'rgba(201,169,97,0.2)'}`,
+                        objectFit: 'cover',
+                        boxShadow: isTop3 ? `0 0 8px ${rankColors[i]}44` : 'none',
+                      }} />
+                    ) : (
+                      <div style={{
+                        width: '32px', height: '32px', borderRadius: '50%', flexShrink: 0,
+                        background: `linear-gradient(135deg, ${isTop3 ? rankColors[i]+'33' : '#2a1a0a'}, #0a0808)`,
+                        border: `2px solid ${isTop3 ? rankColors[i] : isMe ? '#c9a961' : 'rgba(201,169,97,0.2)'}`,
+                        display: 'flex', alignItems: 'center', justifyContent: 'center',
+                        fontFamily: 'Cinzel, serif', fontSize: '0.8rem', fontWeight: 700,
+                        color: isTop3 ? rankColors[i] : '#c9a961',
+                      }}>
+                        {(p.display_name || '?')[0].toUpperCase()}
+                      </div>
+                    )}
+
+                    {/* الاسم + الإحصائيات */}
+                    <div style={{ flex: 1, minWidth: 0 }}>
+                      <div style={{
+                        fontFamily: 'Amiri, serif', fontSize: '0.88rem',
+                        color: isMe ? '#e8c876' : isTop3 ? rankColors[i] : '#d8d2c4',
+                        fontWeight: isMe || isTop3 ? 700 : 400,
+                        whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis',
+                      }}>
+                        {p.display_name || 'مجهول'} {isMe && <span style={{ fontSize: '0.65rem', color: '#c9a961' }}>(أنت)</span>}
+                      </div>
+                      <div style={{
+                        fontFamily: 'JetBrains Mono, monospace', fontSize: '0.62rem', color: '#5a5040',
+                        marginTop: '1px',
+                      }}>
+                        {p.games_played ?? 0} مباراة · {winRate}% فوز
+                      </div>
+                    </div>
+
+                    {/* الانتصارات + التقييم */}
+                    <div style={{ textAlign: 'left', flexShrink: 0 }}>
+                      <div style={{
+                        fontFamily: 'JetBrains Mono, monospace', fontWeight: 900,
+                        fontSize: '1rem', color: isTop3 ? rankColors[i] : '#c9a961',
+                        lineHeight: 1,
+                      }}>
+                        {p.games_won ?? 0}
+                        <span style={{ fontSize: '0.55rem', color: '#8a7544', fontWeight: 400 }}> فوز</span>
+                      </div>
+                      <div style={{
+                        fontFamily: 'JetBrains Mono, monospace', fontSize: '0.6rem',
+                        color: '#5a5040', marginTop: '2px',
+                      }}>
+                        ⭐ {p.rating ?? 1000}
+                      </div>
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+
+            {/* تذييل البطولة */}
+            <div style={{
+              padding: '0.6rem 1rem',
+              borderTop: '1px solid rgba(201,169,97,0.15)',
+              textAlign: 'center',
+              fontFamily: 'Amiri, serif', fontSize: '0.72rem', color: '#5a5040',
+            }}>
+              🏆 الترتيب حسب عدد الانتصارات — الأول يفوز بـ <span style={{ color: '#FFD700' }}>1000 جنيه</span>
+            </div>
+          </div>
+        </div>
+      );
+    }
+
     function Game({ user, profile, onSignOut, onRefreshProfile }) {
       const [state, dispatch] = useReducer(gameReducer, undefined, makeInitialState);
       const [mode, setMode] = useState('menu'); // 'menu' | '1p' | '2p' | 'online'
@@ -3376,6 +3592,9 @@
                   </div>
                 </div>
               )}
+
+              {/* ══ بطولة المحاربين ══ */}
+              <LeaderboardSection currentUserId={user?.id} />
 
               {/* تذييل صغير + روابط قانونية */}
               <div className="text-center mt-8 text-xs text-gray-600 font-display">
