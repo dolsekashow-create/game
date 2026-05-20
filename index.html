@@ -1311,7 +1311,8 @@
         movement: KING_TEMPLATE.movement,
         movedThisTurn: false,
         summoningSickness: false,
-        snareTimer: 0
+        snareTimer: 0,
+        faceDown: false
       };
       board[7][KING_START_COL].unit = {
         instanceId: `p2-king`,
@@ -1324,7 +1325,8 @@
         movement: KING_TEMPLATE.movement,
         movedThisTurn: false,
         summoningSickness: false,
-        snareTimer: 0
+        snareTimer: 0,
+        faceDown: false
       };
 
       const deck1 = buildDeck();
@@ -1370,6 +1372,10 @@
 
       const aName = attacker.isKing ? 'الملك' : (CARD_BY_ID[attacker.cardId]?.name_ar || '?');
       const dName = defender.isKing ? 'الملك' : (CARD_BY_ID[defender.cardId]?.name_ar || '?');
+
+      // كشف الوحشين عند القتال
+      attacker.faceDown = false;
+      defender.faceDown = false;
 
       pushLog(state, `صدام: ${aName} (لاعب ${attacker.playerNum}) → ${dName} (لاعب ${defender.playerNum})`, 'combat');
 
@@ -1432,6 +1438,8 @@
 
       const trapCard = CARD_BY_ID[trap.cardId];
       pushLog(state, `💥 ${unit.isKing ? 'الملك' : CARD_BY_ID[unit.cardId].name_ar} وقع في فخ ${trapCard.name_ar}!`, 'combat');
+      // كشف الوحش عند تفعيل الفخ
+      unit.faceDown = false;
 
       const effect = trapCard.effect;
       if (effect === 'destroy') {
@@ -1521,7 +1529,8 @@
         movement: card.movement,
         movedThisTurn: false,
         summoningSickness: true,
-        snareTimer: 0
+        snareTimer: 0,
+        faceDown: true
       };
       pushLog(state, `استدعاء: ${card.name_ar} في ${colName(c)}${r+1}`, 'summon');
       return true;
@@ -1990,6 +1999,16 @@
           s.selected = null;
           return s;
 
+        case 'FLIP_UNIT': {
+          const { r, c } = action;
+          const u = s.board[r][c].unit;
+          if (u && u.playerNum === s.currentPlayer && !u.isKing && u.faceDown) {
+            u.faceDown = false;
+            pushLog(s, `👁 كُشف ${CARD_BY_ID[u.cardId]?.name_ar || '؟'}`, 'p' + s.currentPlayer);
+          }
+          return s;
+        }
+
         case 'END_TURN':
           endTurn(s);
           return s;
@@ -2110,7 +2129,7 @@
     // ════════════════════════════════════════════════════════════
     // مكوّن: الخانة على الرقعة
     // ════════════════════════════════════════════════════════════
-    function BoardCell({ r, c, cell, highlight, onClick, isLight, currentPlayer, isTopRow }) {
+    function BoardCell({ r, c, cell, highlight, onClick, isLight, currentPlayer, isTopRow, viewerPlayer, onFlip }) {
       const u = cell.unit;
       const trap = cell.trap;
       const card = u && !u.isKing ? CARD_BY_ID[u.cardId] : null;
@@ -2118,8 +2137,13 @@
       let className = `board-cell ${isLight ? 'light' : 'dark'}`;
       if (highlight) className += ` ${highlight}`;
 
+      // هل الوحش مخفي عن المشاهد؟
+      const isHiddenFromViewer = u && !u.isKing && u.faceDown && u.playerNum !== viewerPlayer;
+      // هل هو وحش بتاعك وهو مقلوب؟
+      const isOwnFaceDown = u && !u.isKing && u.faceDown && u.playerNum === viewerPlayer;
+
       return (
-        <div className={className} onClick={() => onClick(r, c)}>
+        <div className={className} onClick={() => onClick(r, c)} style={{ position: 'relative' }}>
           {/* coordinate labels في الزوايا */}
           {c === 0 && <div className="coord-label row">{r+1}</div>}
           {isTopRow && <div className="coord-label col">{colName(c)}</div>}
@@ -2131,18 +2155,38 @@
             </div>
           )}
 
-          {/* وحش */}
-          {u && (
-            <div className={`piece p${u.playerNum} ${u.isKing ? 'king' : ''} ${u.summoningSickness || u.snareTimer > 0 ? 'sick' : ''}`}>
+          {/* وحش مخفي على الخصم — بطاقة مقلوبة */}
+          {isHiddenFromViewer && (
+            <div style={{
+              position: 'absolute', inset: '6%',
+              borderRadius: '8px',
+              background: u.playerNum === 1
+                ? 'linear-gradient(135deg, #4a3010 0%, #2a1d0a 100%)'
+                : 'linear-gradient(135deg, #1d2855 0%, #0f1535 100%)',
+              border: `2px solid ${u.playerNum === 1 ? 'var(--p1)' : 'var(--p2)'}`,
+              display: 'flex', flexDirection: 'column',
+              alignItems: 'center', justifyContent: 'center',
+              boxShadow: '0 2px 12px rgba(0,0,0,0.5)',
+            }}>
+              <div style={{ fontSize: '1.4rem', opacity: 0.7 }}>⚜</div>
+              <div style={{
+                fontFamily: 'Cinzel, serif', fontSize: '0.55rem',
+                color: u.playerNum === 1 ? 'var(--p1)' : 'var(--p2)',
+                marginTop: '4px', opacity: 0.8
+              }}>?</div>
+            </div>
+          )}
+
+          {/* وحش بتاعك مقلوب — تشوفه أنت بس مع زرار كشف */}
+          {isOwnFaceDown && (
+            <div
+              className={`piece p${u.playerNum} ${u.summoningSickness || u.snareTimer > 0 ? 'sick' : ''}`}
+              style={{ outline: '2px dashed rgba(201,169,97,0.5)', outlineOffset: '2px' }}
+            >
               {card?.image ? (
                 <>
-                  {/* صورة الوحش كخلفية */}
-                  <img src={card.image} alt={card.name_ar} className="piece-image-bg" />
-                  {/* اسم على الراس */}
-                  <div className="piece-name-overlay">
-                    {u.isKing ? '👑 الملك' : card.name_ar}
-                  </div>
-                  {/* الـ stats في الأسفل */}
+                  <img src={card.image} alt={card.name_ar} className="piece-image-bg" style={{ opacity: 0.7 }} />
+                  <div className="piece-name-overlay">{card.name_ar}</div>
                   <div className="piece-stats-overlay">
                     <span className="stat-atk">⚔{u.atk}</span>
                     <span className="stat-hp">♥{u.hp}</span>
@@ -2150,7 +2194,53 @@
                 </>
               ) : (
                 <>
-                  {/* fallback: لو مفيش صورة، الإيموجي زي الأول */}
+                  <div className="piece-name">
+                    {card?.icon || '?'}
+                    <div style={{ fontSize: '0.5rem', marginTop: '2px' }}>{card?.name_ar}</div>
+                  </div>
+                  <div className="piece-stats">
+                    <span className="stat-atk">⚔{u.atk}</span>
+                    <span className="stat-hp">♥{u.hp}</span>
+                  </div>
+                </>
+              )}
+              {/* زرار الكشف */}
+              {u.playerNum === currentPlayer && onFlip && (
+                <button
+                  onClick={e => { e.stopPropagation(); onFlip(r, c); }}
+                  title="اكشف الورقة للخصم"
+                  style={{
+                    position: 'absolute', top: '-8px', left: '-8px',
+                    width: '20px', height: '20px',
+                    borderRadius: '50%',
+                    background: '#1a3a1a',
+                    border: '1px solid #66cc66',
+                    color: '#66cc66', fontSize: '0.65rem',
+                    cursor: 'pointer',
+                    display: 'flex', alignItems: 'center', justifyContent: 'center',
+                    zIndex: 10, padding: 0,
+                  }}
+                >👁</button>
+              )}
+            </div>
+          )}
+
+          {/* وحش مكشوف */}
+          {u && !isHiddenFromViewer && !isOwnFaceDown && (
+            <div className={`piece p${u.playerNum} ${u.isKing ? 'king' : ''} ${u.summoningSickness || u.snareTimer > 0 ? 'sick' : ''}`}>
+              {card?.image ? (
+                <>
+                  <img src={card.image} alt={card.name_ar} className="piece-image-bg" />
+                  <div className="piece-name-overlay">
+                    {u.isKing ? '👑 الملك' : card.name_ar}
+                  </div>
+                  <div className="piece-stats-overlay">
+                    <span className="stat-atk">⚔{u.atk}</span>
+                    <span className="stat-hp">♥{u.hp}</span>
+                  </div>
+                </>
+              ) : (
+                <>
                   <div className="piece-name">
                     {u.isKing ? '👑' : (card?.icon || '?')}
                     <div style={{ fontSize: '0.5rem', marginTop: '2px' }}>
@@ -3566,6 +3656,8 @@
                     else flip = false;
                     const actualR = flip ? displayRow : BOARD_SIZE - 1 - displayRow;
                     const isTopRow = displayRow === 0;
+                    // اللاعب المشاهد: في 1p = اللاعب 1 دايماً، في 2p = اللاعب الحالي، في online = myPlayerNum
+                    const viewerPlayer = mode === '1p' ? 1 : mode === 'online' ? (onlineGame?.myPlayerNum ?? 1) : state.currentPlayer;
                     return Array.from({ length: BOARD_SIZE }).map((_, c) => {
                       const cell = state.board[actualR][c];
                       const hl = highlights[`${actualR},${c}`];
@@ -3580,10 +3672,16 @@
                           isLight={isLight}
                           isTopRow={isTopRow}
                           currentPlayer={state.currentPlayer}
+                          viewerPlayer={viewerPlayer}
                           onClick={(r, c) => {
                             if (mode === '1p' && state.currentPlayer === 2) return;
                             if (mode === 'online' && state.currentPlayer !== onlineGame?.myPlayerNum) return;
                             syncedDispatch({ type: 'CLICK_CELL', r, c });
+                          }}
+                          onFlip={(r, c) => {
+                            if (mode === '1p' && state.currentPlayer === 2) return;
+                            if (mode === 'online' && state.currentPlayer !== onlineGame?.myPlayerNum) return;
+                            syncedDispatch({ type: 'FLIP_UNIT', r, c });
                           }}
                         />
                       );
