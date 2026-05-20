@@ -10,7 +10,7 @@
   <link rel="preconnect" href="https://fonts.googleapis.com" />
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
   <link
-    href="https://fonts.googleapis.com/css2?family=Cinzel:wght@500;700;900&family=Cormorant+Garamond:ital,wght@0,400;0,600;1,400&family=Amiri:wght@400;700&family=JetBrains+Mono:wght@500;700&display=swap"
+    href="https://fonts.googleapis.com/css2?family=Cinzel:wght@500;700;900&family=Cormorant+Garamond:ital,wght@0,400;0,600;1,400&family=Amiri:wght@400;700&family=JetBrains+Mono:wght@500;700&family=Cairo:wght@400;500;600;700;800;900&display=swap"
     rel="stylesheet"
   />
 
@@ -1100,14 +1100,13 @@
 
     /* Hero section */
     .home-hero-section {
-      flex: 1;
+      flex-shrink: 0;
       display: flex;
       flex-direction: column;
       align-items: center;
       padding: 8px 16px 0;
       position: relative;
       z-index: 2;
-      min-height: 320px;
     }
     .home-game-title {
       font-family: 'Amiri', 'Cinzel', serif;
@@ -1773,6 +1772,670 @@
       -webkit-mask-image: linear-gradient(180deg, black 84%, transparent 100%);
               mask-image: linear-gradient(180deg, black 84%, transparent 100%);
     }
+
+    /* ═══════════════════════════════════════════════════════ */
+    /* CAIRO BASE FONT for the new pages                       */
+    /* ═══════════════════════════════════════════════════════ */
+    .font-cairo { font-family: 'Cairo', 'Amiri', sans-serif; }
+
+    /* ═══════════════════════════════════════════════════════ */
+    /* SHARED SUB-PAGE SHELL (Profile, Tournaments, History)   */
+    /* ═══════════════════════════════════════════════════════ */
+    .subpage {
+      flex: 1;
+      display: flex;
+      flex-direction: column;
+      overflow-y: auto;
+      overflow-x: hidden;
+      padding-bottom: 12px;
+      position: relative;
+      z-index: 2;
+      font-family: 'Cairo', 'Amiri', sans-serif;
+    }
+    .subpage-header {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 16px 18px 14px;
+      gap: 8px;
+      flex-shrink: 0;
+    }
+    .subpage-header h2 {
+      flex: 1;
+      text-align: center;
+      font-family: 'Cairo', 'Amiri', sans-serif;
+      font-size: 1.35rem;
+      font-weight: 700;
+      color: #f0e0a6;
+      letter-spacing: 0.02em;
+      margin: 0;
+      text-shadow: 0 0 18px rgba(232,200,118,0.25);
+    }
+    .subpage-iconbtn {
+      width: 38px;
+      height: 38px;
+      border-radius: 12px;
+      background: rgba(255,255,255,0.04);
+      border: 1px solid rgba(201,169,97,0.18);
+      color: #c9a961;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      cursor: pointer;
+      flex-shrink: 0;
+      transition: all 0.2s;
+    }
+    .subpage-iconbtn:hover {
+      background: rgba(201,169,97,0.12);
+      border-color: rgba(201,169,97,0.4);
+      color: #e8c876;
+    }
+    .subpage-iconbtn:active { transform: scale(0.94); }
+
+    /* Pill tab bar (الكل / انتصارات / هزائم / تعادلات) */
+    .pill-tabs {
+      display: flex;
+      align-items: center;
+      gap: 4px;
+      padding: 0 22px;
+      margin-bottom: 14px;
+      flex-shrink: 0;
+    }
+    .pill-tab {
+      flex: 1;
+      padding: 10px 8px;
+      background: none;
+      border: none;
+      color: rgba(216,210,196,0.55);
+      font-family: 'Cairo', sans-serif;
+      font-size: 0.95rem;
+      font-weight: 600;
+      cursor: pointer;
+      position: relative;
+      transition: color 0.2s;
+    }
+    .pill-tab:hover { color: rgba(232,200,118,0.85); }
+    .pill-tab.active { color: #e8c876; }
+    .pill-tab.active::after {
+      content: '';
+      position: absolute;
+      bottom: 0;
+      left: 15%;
+      right: 15%;
+      height: 2px;
+      background: linear-gradient(90deg, transparent, #e8c876 30%, #e8c876 70%, transparent);
+      border-radius: 1px;
+    }
+
+    /* ═══════════════════════════════════════════════════════ */
+    /* BOTTOM NAVIGATION V2 — SVG line icons                   */
+    /* ═══════════════════════════════════════════════════════ */
+    .bottom-nav-v2 {
+      display: flex;
+      background: linear-gradient(0deg, rgba(6,4,12,0.98), rgba(10,7,18,0.96));
+      border-top: 1px solid rgba(201,169,97,0.18);
+      padding: 6px 4px max(10px, env(safe-area-inset-bottom, 10px));
+      position: relative;
+      z-index: 10;
+      flex-shrink: 0;
+      margin-top: auto;
+    }
+    .nav-v2-btn {
+      flex: 1;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      gap: 4px;
+      padding: 6px 2px;
+      background: none;
+      border: none;
+      cursor: pointer;
+      transition: all 0.2s;
+      position: relative;
+    }
+    .nav-v2-icon {
+      width: 26px;
+      height: 26px;
+      color: rgba(150,130,90,0.55);
+      transition: all 0.2s;
+      stroke-width: 1.8;
+    }
+    .nav-v2-label {
+      font-family: 'Cairo', 'Amiri', sans-serif;
+      font-size: 0.72rem;
+      font-weight: 600;
+      color: rgba(150,130,90,0.55);
+      transition: color 0.2s;
+    }
+    .nav-v2-btn.active .nav-v2-icon {
+      color: #e8c876;
+      filter: drop-shadow(0 0 8px rgba(232,200,118,0.6));
+    }
+    .nav-v2-btn.active .nav-v2-label {
+      color: #e8c876;
+    }
+    .nav-v2-btn.active::after {
+      content: '';
+      position: absolute;
+      bottom: -2px;
+      left: 28%;
+      right: 28%;
+      height: 3px;
+      background: linear-gradient(90deg, transparent, #e8c876 40%, #e8c876 60%, transparent);
+      border-radius: 2px;
+      box-shadow: 0 0 8px rgba(232,200,118,0.7);
+    }
+    .nav-v2-btn:not(.active):hover .nav-v2-icon,
+    .nav-v2-btn:not(.active):hover .nav-v2-label {
+      color: rgba(201,169,97,0.8);
+    }
+
+    /* ═══════════════════════════════════════════════════════ */
+    /* PROFILE PAGE                                            */
+    /* ═══════════════════════════════════════════════════════ */
+    .profile-hero {
+      margin: 4px 18px 20px;
+      padding: 22px 16px 22px;
+      border-radius: 18px;
+      background:
+        radial-gradient(ellipse 70% 70% at 50% 30%, rgba(160,80,220,0.16) 0%, transparent 65%),
+        linear-gradient(180deg, rgba(20,14,32,0.85), rgba(12,8,22,0.92));
+      border: 1px solid rgba(201,169,97,0.18);
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      position: relative;
+      overflow: hidden;
+      box-shadow: inset 0 1px 0 rgba(201,169,97,0.08), 0 8px 30px rgba(0,0,0,0.5);
+    }
+    .profile-hero::before {
+      content: '';
+      position: absolute;
+      inset: 0;
+      background-image: url("data:image/svg+xml,%3Csvg width='300' height='200' xmlns='http://www.w3.org/2000/svg'%3E%3Ccircle cx='30' cy='40' r='1' fill='%23c9a961' opacity='0.5'/%3E%3Ccircle cx='90' cy='30' r='0.8' fill='%23a060ff' opacity='0.4'/%3E%3Ccircle cx='180' cy='60' r='1.2' fill='%23c9a961' opacity='0.45'/%3E%3Ccircle cx='250' cy='40' r='0.8' fill='%23a060ff' opacity='0.4'/%3E%3Ccircle cx='60' cy='150' r='1' fill='%23c9a961' opacity='0.4'/%3E%3Ccircle cx='200' cy='170' r='1' fill='%23a060ff' opacity='0.5'/%3E%3C/svg%3E");
+      pointer-events: none;
+    }
+    .profile-avatar-wrap {
+      position: relative;
+      margin-bottom: 12px;
+      z-index: 2;
+    }
+    .profile-avatar {
+      width: 112px;
+      height: 112px;
+      border-radius: 50%;
+      background: linear-gradient(135deg, #2a1d3a, #1a1228);
+      border: 3px solid #c9a961;
+      overflow: hidden;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      box-shadow:
+        0 0 0 6px rgba(20,14,32,0.6),
+        0 0 30px rgba(160,80,220,0.4),
+        inset 0 0 30px rgba(160,80,220,0.2);
+    }
+    .profile-avatar img {
+      width: 100%; height: 100%; object-fit: cover;
+    }
+    .profile-avatar-fallback {
+      width: 100%; height: 100%;
+      display: flex; align-items: center; justify-content: center;
+      background: radial-gradient(circle at 50% 35%, #4a3070 0%, #2a1844 60%, #14081e 100%);
+    }
+    .profile-level-badge {
+      position: absolute;
+      bottom: -4px;
+      left: 50%;
+      transform: translateX(-50%);
+      min-width: 38px;
+      height: 28px;
+      padding: 0 10px;
+      border-radius: 14px;
+      background: linear-gradient(135deg, #2a1844, #1a0e2e);
+      border: 2px solid #c9a961;
+      color: #e8c876;
+      font-family: 'Cairo', sans-serif;
+      font-weight: 800;
+      font-size: 0.95rem;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      box-shadow: 0 4px 12px rgba(0,0,0,0.5);
+    }
+    .profile-name {
+      font-family: 'Cairo', 'Amiri', sans-serif;
+      font-size: 1.55rem;
+      font-weight: 800;
+      color: #f0e0a6;
+      text-align: center;
+      margin: 8px 0 2px;
+      z-index: 2;
+      position: relative;
+      text-shadow: 0 0 18px rgba(232,200,118,0.25);
+    }
+    .profile-subtitle {
+      font-family: 'Cairo', sans-serif;
+      font-size: 0.9rem;
+      color: rgba(216,210,196,0.55);
+      text-align: center;
+      z-index: 2;
+      position: relative;
+    }
+
+    .profile-stats-card {
+      margin: 0 18px 14px;
+      padding: 14px 12px;
+      border-radius: 14px;
+      background: linear-gradient(180deg, rgba(18,12,28,0.85), rgba(12,8,20,0.9));
+      border: 1px solid rgba(201,169,97,0.18);
+      display: grid;
+      grid-template-columns: repeat(4, 1fr);
+      gap: 6px;
+    }
+    .profile-stat {
+      text-align: center;
+      padding: 4px 2px;
+      position: relative;
+    }
+    .profile-stat:not(:last-child)::after {
+      content: '';
+      position: absolute;
+      top: 12%;
+      bottom: 12%;
+      right: -3px;
+      width: 1px;
+      background: rgba(201,169,97,0.15);
+    }
+    .profile-stat-value {
+      font-family: 'Cairo', sans-serif;
+      font-size: 1.25rem;
+      font-weight: 800;
+      color: #e8c876;
+      line-height: 1;
+      margin-bottom: 4px;
+    }
+    .profile-stat-label {
+      font-family: 'Cairo', sans-serif;
+      font-size: 0.72rem;
+      color: rgba(216,210,196,0.55);
+      font-weight: 500;
+    }
+
+    .profile-rank-card {
+      margin: 0 18px 18px;
+      padding: 14px 16px;
+      border-radius: 14px;
+      background: linear-gradient(135deg, rgba(60,30,100,0.35), rgba(30,15,55,0.55));
+      border: 1px solid rgba(160,80,220,0.3);
+      display: flex;
+      align-items: center;
+      gap: 14px;
+      position: relative;
+      overflow: hidden;
+    }
+    .profile-rank-info {
+      flex: 1;
+      min-width: 0;
+    }
+    .profile-rank-name {
+      font-family: 'Cairo', sans-serif;
+      font-size: 1.15rem;
+      font-weight: 800;
+      color: #e8c876;
+      margin-bottom: 4px;
+    }
+    .profile-rank-progress-text {
+      font-family: 'Cairo', sans-serif;
+      font-size: 0.85rem;
+      color: rgba(216,210,196,0.7);
+      margin-bottom: 8px;
+    }
+    .profile-rank-bar {
+      height: 8px;
+      background: rgba(0,0,0,0.4);
+      border-radius: 4px;
+      overflow: hidden;
+      border: 1px solid rgba(201,169,97,0.15);
+    }
+    .profile-rank-fill {
+      height: 100%;
+      background: linear-gradient(90deg, #c9a961, #e8c876);
+      border-radius: 4px;
+      box-shadow: 0 0 8px rgba(201,169,97,0.6);
+      transition: width 0.6s ease;
+    }
+    .profile-rank-emblem {
+      width: 64px;
+      height: 64px;
+      flex-shrink: 0;
+      filter: drop-shadow(0 0 12px rgba(160,80,220,0.6));
+    }
+
+    .profile-menu-list {
+      margin: 0 18px 16px;
+      display: flex;
+      flex-direction: column;
+      gap: 8px;
+    }
+    .profile-menu-item {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      padding: 14px 16px;
+      border-radius: 12px;
+      background: linear-gradient(180deg, rgba(18,12,28,0.7), rgba(12,8,20,0.8));
+      border: 1px solid rgba(201,169,97,0.15);
+      cursor: pointer;
+      transition: all 0.2s;
+      font-family: 'Cairo', sans-serif;
+    }
+    .profile-menu-item:hover {
+      border-color: rgba(201,169,97,0.4);
+      background: linear-gradient(180deg, rgba(28,18,44,0.85), rgba(18,12,30,0.9));
+      transform: translateX(-2px);
+    }
+    .profile-menu-icon {
+      width: 38px;
+      height: 38px;
+      border-radius: 10px;
+      background: rgba(201,169,97,0.12);
+      border: 1px solid rgba(201,169,97,0.25);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      color: #c9a961;
+      flex-shrink: 0;
+    }
+    .profile-menu-label {
+      flex: 1;
+      font-size: 1rem;
+      font-weight: 600;
+      color: #d8d2c4;
+    }
+    .profile-menu-chevron {
+      color: rgba(201,169,97,0.5);
+      flex-shrink: 0;
+    }
+
+    /* ═══════════════════════════════════════════════════════ */
+    /* TOURNAMENTS PAGE                                        */
+    /* ═══════════════════════════════════════════════════════ */
+    .tour-hero {
+      margin: 4px 18px 18px;
+      padding: 22px 20px;
+      border-radius: 18px;
+      background:
+        radial-gradient(ellipse 60% 100% at 100% 50%, rgba(160,80,220,0.22) 0%, transparent 70%),
+        linear-gradient(135deg, rgba(40,20,70,0.85), rgba(20,12,38,0.92));
+      border: 1px solid rgba(160,80,220,0.28);
+      display: flex;
+      align-items: center;
+      gap: 14px;
+      position: relative;
+      overflow: hidden;
+      box-shadow: 0 8px 32px rgba(0,0,0,0.5), inset 0 1px 0 rgba(201,169,97,0.08);
+    }
+    .tour-hero-text {
+      flex: 1;
+      min-width: 0;
+    }
+    .tour-hero-title {
+      font-family: 'Cairo', sans-serif;
+      font-size: 1.3rem;
+      font-weight: 800;
+      color: #f0e0a6;
+      margin-bottom: 4px;
+      text-shadow: 0 0 16px rgba(232,200,118,0.3);
+    }
+    .tour-hero-sub {
+      font-family: 'Cairo', sans-serif;
+      font-size: 0.85rem;
+      color: rgba(216,210,196,0.6);
+      margin-bottom: 14px;
+    }
+    .tour-hero-countdown-row {
+      display: flex;
+      flex-direction: column;
+      gap: 6px;
+    }
+    .tour-hero-countdown-label {
+      font-family: 'Cairo', sans-serif;
+      font-size: 0.78rem;
+      color: rgba(216,210,196,0.5);
+    }
+    .tour-hero-countdown {
+      display: inline-flex;
+      align-items: center;
+      gap: 4px;
+      padding: 6px 12px;
+      border-radius: 10px;
+      background: rgba(0,0,0,0.4);
+      border: 1px solid rgba(201,169,97,0.25);
+      width: fit-content;
+    }
+    .tour-hero-countdown span {
+      font-family: 'Cairo', sans-serif;
+      font-weight: 800;
+      color: #e8c876;
+      font-size: 1.05rem;
+      letter-spacing: 0.05em;
+      min-width: 22px;
+      text-align: center;
+    }
+    .tour-hero-countdown .sep {
+      color: rgba(201,169,97,0.5);
+      font-weight: 700;
+    }
+    .tour-hero-trophy {
+      width: 100px;
+      height: 100px;
+      flex-shrink: 0;
+      filter: drop-shadow(0 0 18px rgba(232,200,118,0.5))
+              drop-shadow(0 4px 10px rgba(0,0,0,0.6));
+    }
+
+    .tour-list {
+      display: flex;
+      flex-direction: column;
+      gap: 10px;
+      padding: 0 18px;
+    }
+    .tour-card {
+      padding: 14px 16px;
+      border-radius: 14px;
+      background: linear-gradient(180deg, rgba(18,12,28,0.85), rgba(12,8,22,0.92));
+      border: 1px solid rgba(201,169,97,0.15);
+      display: flex;
+      flex-direction: column;
+      gap: 10px;
+      transition: all 0.2s;
+    }
+    .tour-card:hover {
+      border-color: rgba(201,169,97,0.35);
+      transform: translateY(-1px);
+    }
+    .tour-card-row {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+    }
+    .tour-card-trophy {
+      width: 44px;
+      height: 44px;
+      flex-shrink: 0;
+      color: #e8c876;
+      filter: drop-shadow(0 0 8px rgba(232,200,118,0.4));
+    }
+    .tour-card-info {
+      flex: 1;
+      min-width: 0;
+    }
+    .tour-card-name {
+      font-family: 'Cairo', sans-serif;
+      font-size: 1.05rem;
+      font-weight: 700;
+      color: #f0e0a6;
+      margin-bottom: 2px;
+    }
+    .tour-card-players {
+      font-family: 'Cairo', sans-serif;
+      font-size: 0.82rem;
+      color: rgba(216,210,196,0.55);
+    }
+    .tour-card-fee {
+      display: flex;
+      flex-direction: column;
+      align-items: flex-end;
+      flex-shrink: 0;
+    }
+    .tour-card-fee-label {
+      font-family: 'Cairo', sans-serif;
+      font-size: 0.7rem;
+      color: rgba(216,210,196,0.5);
+      margin-bottom: 2px;
+    }
+    .tour-card-fee-amount {
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      font-family: 'Cairo', sans-serif;
+      font-weight: 800;
+      font-size: 1.05rem;
+      color: #e8c876;
+    }
+    .tour-card-fee-amount .coin-dot {
+      width: 18px;
+      height: 18px;
+      border-radius: 50%;
+      background: radial-gradient(circle at 35% 30%, #ffe680, #d4a04a 50%, #7a4f10);
+      box-shadow: 0 0 6px rgba(201,169,97,0.4);
+    }
+    .tour-card-bottom {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 10px;
+      padding-top: 8px;
+      border-top: 1px solid rgba(201,169,97,0.1);
+    }
+    .tour-card-time {
+      font-family: 'Cairo', sans-serif;
+      font-size: 0.78rem;
+      color: rgba(216,210,196,0.55);
+      display: flex;
+      align-items: center;
+      gap: 6px;
+    }
+    .tour-card-btn {
+      padding: 8px 18px;
+      border-radius: 10px;
+      background: linear-gradient(135deg, #1f8a4d, #156a3a);
+      border: 1px solid rgba(60,200,120,0.5);
+      color: #ddffe8;
+      font-family: 'Cairo', sans-serif;
+      font-size: 0.9rem;
+      font-weight: 700;
+      cursor: pointer;
+      transition: all 0.15s;
+      box-shadow: 0 2px 10px rgba(30,140,80,0.4), inset 0 1px 0 rgba(255,255,255,0.1);
+    }
+    .tour-card-btn:hover { transform: translateY(-1px); box-shadow: 0 4px 14px rgba(30,140,80,0.55); }
+    .tour-card-btn:active { transform: translateY(0); }
+
+    /* ═══════════════════════════════════════════════════════ */
+    /* HISTORY PAGE                                            */
+    /* ═══════════════════════════════════════════════════════ */
+    .history-list {
+      display: flex;
+      flex-direction: column;
+      gap: 10px;
+      padding: 0 18px;
+    }
+    .history-card {
+      display: flex;
+      align-items: center;
+      gap: 14px;
+      padding: 12px 14px;
+      border-radius: 14px;
+      background: linear-gradient(180deg, rgba(18,12,28,0.85), rgba(12,8,22,0.92));
+      border: 1px solid rgba(201,169,97,0.13);
+      transition: all 0.2s;
+    }
+    .history-card:hover {
+      border-color: rgba(201,169,97,0.3);
+      transform: translateY(-1px);
+    }
+    .history-avatar {
+      width: 54px;
+      height: 54px;
+      border-radius: 50%;
+      flex-shrink: 0;
+      overflow: hidden;
+      border: 2px solid rgba(201,169,97,0.5);
+      background: radial-gradient(circle at 50% 35%, #4a3070, #2a1844 60%, #14081e);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      position: relative;
+    }
+    .history-avatar.color-purple { background: radial-gradient(circle at 50% 35%, #4a2070, #2a1044 60%, #14081e); }
+    .history-avatar.color-gold   { background: radial-gradient(circle at 50% 35%, #6a4820, #3a2810 60%, #1a1408); }
+    .history-avatar.color-blue   { background: radial-gradient(circle at 50% 35%, #20406a, #102844 60%, #08141e); }
+    .history-avatar.color-silver { background: radial-gradient(circle at 50% 35%, #909090, #4a4a55 60%, #1e1e22); }
+    .history-info {
+      flex: 1;
+      min-width: 0;
+      text-align: right;
+    }
+    .history-name {
+      font-family: 'Cairo', sans-serif;
+      font-size: 1rem;
+      font-weight: 700;
+      color: #f0e0a6;
+      margin-bottom: 2px;
+    }
+    .history-time {
+      font-family: 'Cairo', sans-serif;
+      font-size: 0.75rem;
+      color: rgba(216,210,196,0.5);
+    }
+    .history-result {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      gap: 2px;
+      flex-shrink: 0;
+      min-width: 72px;
+    }
+    .history-result-label {
+      font-family: 'Cairo', sans-serif;
+      font-size: 0.95rem;
+      font-weight: 800;
+    }
+    .history-result-label.win    { color: #5ec88f; }
+    .history-result-label.loss   { color: #d97070; }
+    .history-result-label.draw   { color: #e8c876; }
+    .history-score {
+      font-family: 'Cairo', sans-serif;
+      font-size: 0.95rem;
+      font-weight: 700;
+      color: rgba(216,210,196,0.75);
+      letter-spacing: 0.05em;
+    }
+    .history-piece {
+      width: 38px;
+      height: 38px;
+      flex-shrink: 0;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      color: rgba(216,210,196,0.7);
+      font-size: 1.6rem;
+      filter: drop-shadow(0 2px 4px rgba(0,0,0,0.6));
+    }
+    .history-piece.gold  { color: #e8c876; filter: drop-shadow(0 0 6px rgba(232,200,118,0.5)); }
+    .history-piece.dark  { color: #2a2018; filter: drop-shadow(1px 1px 0 rgba(80,60,30,0.5)) drop-shadow(0 2px 4px rgba(0,0,0,0.6)); }
   </style>
 </head>
 <body>
@@ -3982,6 +4645,528 @@
     }
 
     // ════════════════════════════════════════════════════════════
+    // NavIcons — SVG line icons used in the new bottom navigation
+    // ════════════════════════════════════════════════════════════
+    const NavIcons = {
+      home: (
+        <svg className="nav-v2-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeLinecap="round" strokeLinejoin="round">
+          <path d="M3 10.5L12 3l9 7.5V20a1.5 1.5 0 01-1.5 1.5h-4V14h-7v7.5h-4A1.5 1.5 0 013 20z"/>
+        </svg>
+      ),
+      trophy: (
+        <svg className="nav-v2-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeLinecap="round" strokeLinejoin="round">
+          <path d="M7 4h10v4.5a5 5 0 01-10 0z"/>
+          <path d="M7 4.5H4v2a3 3 0 003 3"/>
+          <path d="M17 4.5h3v2a3 3 0 01-3 3"/>
+          <path d="M9 21h6"/>
+          <path d="M12 17v4"/>
+          <path d="M9 17h6"/>
+        </svg>
+      ),
+      clipboard: (
+        <svg className="nav-v2-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeLinecap="round" strokeLinejoin="round">
+          <rect x="6.5" y="4.5" width="11" height="16" rx="2"/>
+          <path d="M9 4.5V3.5a1 1 0 011-1h4a1 1 0 011 1v1"/>
+          <line x1="9.5" y1="10" x2="14.5" y2="10"/>
+          <line x1="9.5" y1="13.5" x2="14.5" y2="13.5"/>
+          <line x1="9.5" y1="17" x2="12.5" y2="17"/>
+        </svg>
+      ),
+      user: (
+        <svg className="nav-v2-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeLinecap="round" strokeLinejoin="round">
+          <circle cx="12" cy="8.5" r="3.8"/>
+          <path d="M4.5 21c0.6-3.8 3.8-6.5 7.5-6.5s6.9 2.7 7.5 6.5"/>
+        </svg>
+      ),
+      // utility / page-internal icons
+      back: (
+        <svg viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+          <path d="M9 6l-6 6 6 6"/>
+          <line x1="3" y1="12" x2="21" y2="12"/>
+        </svg>
+      ),
+      gear: (
+        <svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
+          <circle cx="12" cy="12" r="3"/>
+          <path d="M19.4 15a1.7 1.7 0 00.3 1.8l.1.1a2 2 0 11-2.8 2.8l-.1-.1a1.7 1.7 0 00-1.8-.3 1.7 1.7 0 00-1 1.5V21a2 2 0 11-4 0v-.1a1.7 1.7 0 00-1.1-1.5 1.7 1.7 0 00-1.8.3l-.1.1A2 2 0 014 16.9l.1-.1a1.7 1.7 0 00.3-1.8 1.7 1.7 0 00-1.5-1H3a2 2 0 110-4h.1a1.7 1.7 0 001.5-1.1 1.7 1.7 0 00-.3-1.8l-.1-.1A2 2 0 017.1 4l.1.1a1.7 1.7 0 001.8.3H9a1.7 1.7 0 001-1.5V3a2 2 0 114 0v.1a1.7 1.7 0 001 1.5 1.7 1.7 0 001.8-.3l.1-.1a2 2 0 112.8 2.8l-.1.1a1.7 1.7 0 00-.3 1.8V9a1.7 1.7 0 001.5 1H21a2 2 0 110 4h-.1a1.7 1.7 0 00-1.5 1z"/>
+        </svg>
+      ),
+      info: (
+        <svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
+          <circle cx="12" cy="12" r="9"/>
+          <line x1="12" y1="16" x2="12" y2="11"/>
+          <line x1="12" y1="8" x2="12.01" y2="8"/>
+        </svg>
+      ),
+      filter: (
+        <svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
+          <path d="M3 4h18l-7 9v6l-4 2v-8z"/>
+        </svg>
+      ),
+      chevron: (
+        <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+          <path d="M14 6l-6 6 6 6"/>
+        </svg>
+      ),
+      barChart: (
+        <svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
+          <line x1="6" y1="20" x2="6" y2="12"/>
+          <line x1="12" y1="20" x2="12" y2="6"/>
+          <line x1="18" y1="20" x2="18" y2="15"/>
+          <line x1="3" y1="20" x2="21" y2="20"/>
+        </svg>
+      ),
+      medal: (
+        <svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
+          <circle cx="12" cy="15" r="5"/>
+          <path d="M8.5 11L6 3h12l-2.5 8"/>
+          <path d="M12 15l-1.5 1 .5-2-1.5-1.2 2-.1.5-1.7.5 1.7 2 .1L13 14l.5 2z" fill="currentColor"/>
+        </svg>
+      ),
+      friends: (
+        <svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
+          <circle cx="9" cy="9" r="3.2"/>
+          <path d="M3 19c0.5-3.2 3-5 6-5s5.5 1.8 6 5"/>
+          <circle cx="16.5" cy="8" r="2.6"/>
+          <path d="M16 14c2.5 0 4.5 1.4 5 4"/>
+        </svg>
+      ),
+      clock: (
+        <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
+          <circle cx="12" cy="12" r="9"/>
+          <polyline points="12,7 12,12 15,14"/>
+        </svg>
+      ),
+    };
+
+    // SVG silhouette for the "hooded mage" placeholder avatar (matches the mockup vibe)
+    function HoodedFigure({ tint = '#a060ff' }) {
+      return (
+        <svg viewBox="0 0 100 100" width="100%" height="100%" preserveAspectRatio="xMidYMid slice">
+          <defs>
+            <radialGradient id="glow-eyes" cx="50%" cy="50%">
+              <stop offset="0%" stopColor={tint} stopOpacity="1"/>
+              <stop offset="100%" stopColor={tint} stopOpacity="0"/>
+            </radialGradient>
+          </defs>
+          {/* Hood/cloak silhouette */}
+          <path d="M50,18 C32,18 20,32 20,52 L20,90 C20,95 25,100 30,100 L70,100 C75,100 80,95 80,90 L80,52 C80,32 68,18 50,18 Z"
+                fill="rgba(8,4,14,0.92)"/>
+          {/* Face shadow */}
+          <ellipse cx="50" cy="48" rx="16" ry="20" fill="rgba(0,0,0,0.85)"/>
+          {/* Two glowing eyes */}
+          <circle cx="44" cy="46" r="3" fill="url(#glow-eyes)"/>
+          <circle cx="56" cy="46" r="3" fill="url(#glow-eyes)"/>
+          <circle cx="44" cy="46" r="1.5" fill={tint}/>
+          <circle cx="56" cy="46" r="1.5" fill={tint}/>
+        </svg>
+      );
+    }
+
+    // SVG diamond rank emblem (purple "Master" tier)
+    function RankEmblem() {
+      return (
+        <svg viewBox="0 0 80 80" className="profile-rank-emblem">
+          <defs>
+            <linearGradient id="rk-purple" x1="0%" y1="0%" x2="0%" y2="100%">
+              <stop offset="0%" stopColor="#c46bff"/>
+              <stop offset="60%" stopColor="#7a2dc8"/>
+              <stop offset="100%" stopColor="#3c0d6a"/>
+            </linearGradient>
+            <linearGradient id="rk-gold" x1="0%" y1="0%" x2="0%" y2="100%">
+              <stop offset="0%" stopColor="#f5d97f"/>
+              <stop offset="100%" stopColor="#a07828"/>
+            </linearGradient>
+          </defs>
+          {/* Outer shield/wings */}
+          <path d="M14 22 L26 14 L26 30 L18 36 Z" fill="url(#rk-gold)" opacity="0.85"/>
+          <path d="M66 22 L54 14 L54 30 L62 36 Z" fill="url(#rk-gold)" opacity="0.85"/>
+          {/* Central diamond */}
+          <path d="M40 8 L62 32 L40 72 L18 32 Z" fill="url(#rk-purple)" stroke="#e8c876" strokeWidth="2"/>
+          {/* Inner facet highlight */}
+          <path d="M40 14 L52 32 L40 60 L28 32 Z" fill="none" stroke="#ffffff" strokeOpacity="0.25" strokeWidth="1.5"/>
+          {/* Sparkle */}
+          <circle cx="34" cy="26" r="1.6" fill="#ffffff" opacity="0.8"/>
+          <circle cx="46" cy="42" r="1" fill="#ffffff" opacity="0.6"/>
+        </svg>
+      );
+    }
+
+    // Large gold trophy SVG used as the tournaments hero
+    function TrophyHero() {
+      return (
+        <svg viewBox="0 0 100 100" className="tour-hero-trophy">
+          <defs>
+            <linearGradient id="th-cup" x1="0%" y1="0%" x2="0%" y2="100%">
+              <stop offset="0%" stopColor="#fde79c"/>
+              <stop offset="35%" stopColor="#e8c876"/>
+              <stop offset="65%" stopColor="#c9a961"/>
+              <stop offset="100%" stopColor="#7a4f10"/>
+            </linearGradient>
+            <linearGradient id="th-shine" x1="0%" y1="0%" x2="100%" y2="100%">
+              <stop offset="0%" stopColor="#ffffff" stopOpacity="0.45"/>
+              <stop offset="50%" stopColor="#ffffff" stopOpacity="0"/>
+            </linearGradient>
+          </defs>
+          {/* Cup body */}
+          <path d="M30 18 L70 18 L66 54 C64 64 58 70 50 70 C42 70 36 64 34 54 Z" fill="url(#th-cup)" stroke="#a07828" strokeWidth="1"/>
+          {/* Handles */}
+          <path d="M30 24 C20 24 16 32 18 40 C20 46 24 48 30 48" fill="none" stroke="url(#th-cup)" strokeWidth="4" strokeLinecap="round"/>
+          <path d="M70 24 C80 24 84 32 82 40 C80 46 76 48 70 48" fill="none" stroke="url(#th-cup)" strokeWidth="4" strokeLinecap="round"/>
+          {/* Shine */}
+          <path d="M36 24 L64 24 L62 38 C58 32 50 30 42 32 Z" fill="url(#th-shine)"/>
+          {/* Star on cup */}
+          <path d="M50 36 L52 42 L58 42 L53 46 L55 52 L50 48 L45 52 L47 46 L42 42 L48 42 Z" fill="#a07828" opacity="0.7"/>
+          {/* Stem */}
+          <rect x="46" y="70" width="8" height="10" fill="url(#th-cup)"/>
+          {/* Base */}
+          <path d="M34 80 L66 80 L62 92 L38 92 Z" fill="url(#th-cup)" stroke="#a07828" strokeWidth="1"/>
+        </svg>
+      );
+    }
+
+    // Small trophy used inside the tournament list cards
+    function TrophySmall({ tone = 'gold' }) {
+      const cup = tone === 'silver' ? '#cdd0d6' : tone === 'bronze' ? '#cd7f32' : '#e8c876';
+      const dark = tone === 'silver' ? '#5a6068' : tone === 'bronze' ? '#5a3a18' : '#a07828';
+      return (
+        <svg viewBox="0 0 44 44" className="tour-card-trophy">
+          <path d="M14 8 L30 8 L28 26 C27 31 24 33 22 33 C20 33 17 31 16 26 Z" fill={cup} stroke={dark} strokeWidth="0.8"/>
+          <path d="M14 10 C9 10 7 14 8 19 C9 22 11 23 14 23" fill="none" stroke={cup} strokeWidth="2"/>
+          <path d="M30 10 C35 10 37 14 36 19 C35 22 33 23 30 23" fill="none" stroke={cup} strokeWidth="2"/>
+          <rect x="20" y="33" width="4" height="5" fill={cup}/>
+          <path d="M14 38 L30 38 L28 42 L16 42 Z" fill={cup} stroke={dark} strokeWidth="0.8"/>
+        </svg>
+      );
+    }
+
+    // ════════════════════════════════════════════════════════════
+    // BottomNavV2 — shared SVG line-icon bottom navigation
+    // ════════════════════════════════════════════════════════════
+    function BottomNavV2({ currentPage, onChange }) {
+      const tabs = [
+        { id: 'home',        label: 'الرئيسية',     icon: NavIcons.home },
+        { id: 'tournaments', label: 'مسابقات',      icon: NavIcons.trophy },
+        { id: 'history',     label: 'السجل',        icon: NavIcons.clipboard },
+        { id: 'profile',     label: 'ملفي الشخصي',  icon: NavIcons.user },
+      ];
+      return (
+        <div className="bottom-nav-v2">
+          {tabs.map(t => (
+            <button
+              key={t.id}
+              className={`nav-v2-btn ${currentPage === t.id ? 'active' : ''}`}
+              onClick={() => onChange(t.id)}
+            >
+              {t.icon}
+              <span className="nav-v2-label">{t.label}</span>
+            </button>
+          ))}
+        </div>
+      );
+    }
+
+    // ════════════════════════════════════════════════════════════
+    // ProfilePage — صفحة "ملفي الشخصي"
+    // ════════════════════════════════════════════════════════════
+    function ProfilePage({ profile, user, onOpenSettings }) {
+      const displayName  = profile?.display_name || 'لاعب';
+      const gamesPlayed  = profile?.games_played ?? 0;
+      const gamesWon     = profile?.games_won    ?? 0;
+      const rating       = profile?.rating       ?? 1000;
+      const winRate      = gamesPlayed > 0 ? Math.round((gamesWon / gamesPlayed) * 100) : 0;
+      const level        = Math.max(1, Math.floor(gamesWon / 35) + 1);
+      // Master rank progress (placeholder until backed by a real schema column)
+      const rankCurrent  = rating;
+      const rankTarget   = Math.ceil((rating + 250) / 250) * 250;
+      const rankProgress = Math.min(100, Math.round(((rankCurrent - (rankTarget - 500)) / 500) * 100));
+
+      const menu = [
+        { icon: NavIcons.barChart, label: 'الإحصائيات' },
+        { icon: NavIcons.medal,    label: 'الإنجازات' },
+        { icon: NavIcons.friends,  label: 'الأصدقاء' },
+        { icon: NavIcons.gear,     label: 'الإعدادات', onClick: onOpenSettings },
+      ];
+
+      return (
+        <div className="subpage" dir="rtl">
+          {/* Header: settings on the visual right (start in RTL), title centered */}
+          <div className="subpage-header">
+            <button className="subpage-iconbtn" onClick={onOpenSettings} title="الإعدادات">
+              {NavIcons.gear}
+            </button>
+            <h2>ملفي الشخصي</h2>
+            <div style={{width: 38}} /> {/* spacer for symmetry */}
+          </div>
+
+          {/* Hero: avatar + name + subtitle */}
+          <div className="profile-hero">
+            <div className="profile-avatar-wrap">
+              <div className="profile-avatar">
+                {profile?.avatar_url
+                  ? <img src={profile.avatar_url} alt="" />
+                  : <div className="profile-avatar-fallback"><HoodedFigure tint="#a060ff"/></div>
+                }
+              </div>
+              <div className="profile-level-badge">{level}</div>
+            </div>
+            <div className="profile-name">{displayName}</div>
+            <div className="profile-subtitle">أسطورة شطرنج</div>
+          </div>
+
+          {/* 4-stat card */}
+          <div className="profile-stats-card">
+            <div className="profile-stat">
+              <div className="profile-stat-value">{gamesPlayed.toLocaleString('en-US')}</div>
+              <div className="profile-stat-label">المباريات</div>
+            </div>
+            <div className="profile-stat">
+              <div className="profile-stat-value">{gamesWon.toLocaleString('en-US')}</div>
+              <div className="profile-stat-label">الانتصارات</div>
+            </div>
+            <div className="profile-stat">
+              <div className="profile-stat-value">{winRate}%</div>
+              <div className="profile-stat-label">نسبة الفوز</div>
+            </div>
+            <div className="profile-stat">
+              <div className="profile-stat-value">{rating.toLocaleString('en-US')}</div>
+              <div className="profile-stat-label">التصنيف</div>
+            </div>
+          </div>
+
+          {/* Rank progress card */}
+          <div className="profile-rank-card">
+            <div className="profile-rank-info">
+              <div className="profile-rank-name">الماستر</div>
+              <div className="profile-rank-progress-text">
+                {rankCurrent.toLocaleString('en-US')} / {rankTarget.toLocaleString('en-US')}
+              </div>
+              <div className="profile-rank-bar">
+                <div className="profile-rank-fill" style={{ width: `${rankProgress}%` }}/>
+              </div>
+            </div>
+            <RankEmblem />
+          </div>
+
+          {/* Menu list */}
+          <div className="profile-menu-list">
+            {menu.map((m, i) => (
+              <div key={i} className="profile-menu-item" onClick={m.onClick}>
+                <div className="profile-menu-icon">{m.icon}</div>
+                <div className="profile-menu-label">{m.label}</div>
+                <div className="profile-menu-chevron">{NavIcons.chevron}</div>
+              </div>
+            ))}
+          </div>
+        </div>
+      );
+    }
+
+    // ════════════════════════════════════════════════════════════
+    // TournamentsPage — صفحة "المسابقات"
+    // ════════════════════════════════════════════════════════════
+    function TournamentsPage({ onBack }) {
+      const [tab, setTab] = useState('list'); // 'list' | 'mine'
+
+      // Countdown to a fixed weekly-tournament end (Friday 23:59:59 local)
+      const [tick, setTick] = useState(0);
+      useEffect(() => {
+        const t = setInterval(() => setTick(x => x + 1), 1000);
+        return () => clearInterval(t);
+      }, []);
+      const remaining = useMemo(() => {
+        const now = new Date();
+        const day = now.getDay();
+        const daysUntilFri = ((5 - day + 7) % 7) || 7;
+        const end = new Date(now);
+        end.setDate(now.getDate() + daysUntilFri);
+        end.setHours(23, 59, 59, 0);
+        let diff = Math.max(0, end - now);
+        const d = Math.floor(diff / 86400000); diff -= d * 86400000;
+        const h = Math.floor(diff / 3600000);  diff -= h * 3600000;
+        const m = Math.floor(diff / 60000);    diff -= m * 60000;
+        const s = Math.floor(diff / 1000);
+        const pad = n => n.toString().padStart(2, '0');
+        return { d: pad(d), h: pad(h), m: pad(m), s: pad(s) };
+      }, [tick]);
+
+      // Mock tournaments list (display-only — backed by a real table when one exists)
+      const tournaments = [
+        { id:1, name:'كأس النخبة',   players:128, fee:500, ends:'05 ي : 19 س', tone:'gold' },
+        { id:2, name:'بطولة التحدي', players:64,  fee:250, ends:'05 ي : 10 س', tone:'silver' },
+        { id:3, name:'مباراة سريعة', players:0,   playersLabel:'غير محدود', fee:100, ends:'00 ي : 10 س', tone:'bronze' },
+      ];
+
+      return (
+        <div className="subpage" dir="rtl">
+          {/* Header: back arrow on the right (start in RTL), title centered, info on left */}
+          <div className="subpage-header">
+            <button className="subpage-iconbtn" onClick={onBack} title="رجوع">
+              {NavIcons.back}
+            </button>
+            <h2>المسابقات</h2>
+            <button className="subpage-iconbtn" title="معلومات">
+              {NavIcons.info}
+            </button>
+          </div>
+
+          {/* Featured hero */}
+          <div className="tour-hero">
+            <div className="tour-hero-text">
+              <div className="tour-hero-title">بطولة الأساطير</div>
+              <div className="tour-hero-sub">جوائز كبرى بانتظارك</div>
+              <div className="tour-hero-countdown-row">
+                <div className="tour-hero-countdown-label">ينتهي خلال:</div>
+                <div className="tour-hero-countdown">
+                  <span>{remaining.d}</span><span className="sep">:</span>
+                  <span>{remaining.h}</span><span className="sep">:</span>
+                  <span>{remaining.m}</span><span className="sep">:</span>
+                  <span>{remaining.s}</span>
+                </div>
+              </div>
+            </div>
+            <TrophyHero />
+          </div>
+
+          {/* Tabs */}
+          <div className="pill-tabs">
+            <button
+              className={`pill-tab ${tab === 'mine' ? 'active' : ''}`}
+              onClick={() => setTab('mine')}
+            >مسابقاتي</button>
+            <button
+              className={`pill-tab ${tab === 'list' ? 'active' : ''}`}
+              onClick={() => setTab('list')}
+            >قائمة المسابقات</button>
+          </div>
+
+          {tab === 'list' ? (
+            <div className="tour-list">
+              {tournaments.map(t => (
+                <div key={t.id} className="tour-card">
+                  <div className="tour-card-row">
+                    <TrophySmall tone={t.tone}/>
+                    <div className="tour-card-info">
+                      <div className="tour-card-name">{t.name}</div>
+                      <div className="tour-card-players">{t.playersLabel || `${t.players} لاعب`}</div>
+                    </div>
+                    <div className="tour-card-fee">
+                      <div className="tour-card-fee-label">رسوم الدخول</div>
+                      <div className="tour-card-fee-amount">
+                        <span>{t.fee}</span><span className="coin-dot"></span>
+                      </div>
+                    </div>
+                  </div>
+                  <div className="tour-card-bottom">
+                    <div className="tour-card-time">
+                      {NavIcons.clock}<span>ينتهي خلال: {t.ends}</span>
+                    </div>
+                    <button className="tour-card-btn">اشتراك الان</button>
+                  </div>
+                </div>
+              ))}
+            </div>
+          ) : (
+            <div style={{
+              margin: '24px 18px', padding: '40px 16px',
+              border: '1px dashed rgba(201,169,97,0.3)',
+              borderRadius: '14px',
+              textAlign: 'center',
+              color: 'rgba(216,210,196,0.55)',
+              fontFamily: 'Cairo, sans-serif',
+            }}>
+              لم تشترك في أي مسابقة بعد
+            </div>
+          )}
+        </div>
+      );
+    }
+
+    // ════════════════════════════════════════════════════════════
+    // HistoryPage — صفحة "السجل"
+    // ════════════════════════════════════════════════════════════
+    function HistoryPage({ onBack }) {
+      const [tab, setTab] = useState('all'); // all | wins | losses | draws
+
+      // Mock match history (display-only — backed by a real `games` table when one exists)
+      const allMatches = [
+        { id:1, opponent:'ساحر الظلام',    color:'purple', result:'win',  score:'0 - 1', time:'منذ 10 دقائق',  piece:'♟', pieceTone:'gold' },
+        { id:2, opponent:'ملك الشطرنج',    color:'gold',   result:'loss', score:'1 - 0', time:'منذ 30 دقيقة',  piece:'♟', pieceTone:'dark' },
+        { id:3, opponent:'فارس الأساطير',  color:'blue',   result:'win',  score:'0 - 1', time:'منذ ساعة',      piece:'♟', pieceTone:'gold' },
+        { id:4, opponent:'سيدة الأبيض',    color:'silver', result:'draw', score:'1 - 1', time:'منذ ساعتين',    piece:'♟', pieceTone:'gold' },
+        { id:5, opponent:'تنين الصحراء',   color:'gold',   result:'win',  score:'0 - 1', time:'منذ 5 ساعات',   piece:'♟', pieceTone:'gold' },
+        { id:6, opponent:'الظل المقاتل',   color:'purple', result:'loss', score:'1 - 0', time:'أمس',           piece:'♟', pieceTone:'dark' },
+      ];
+
+      const filtered = allMatches.filter(m =>
+        tab === 'all'    ? true :
+        tab === 'wins'   ? m.result === 'win' :
+        tab === 'losses' ? m.result === 'loss' :
+        tab === 'draws'  ? m.result === 'draw' : true
+      );
+
+      const resultLabel = r => r === 'win' ? 'فوز' : r === 'loss' ? 'خسارة' : 'تعادل';
+
+      return (
+        <div className="subpage" dir="rtl">
+          {/* Header */}
+          <div className="subpage-header">
+            <button className="subpage-iconbtn" onClick={onBack} title="رجوع">
+              {NavIcons.back}
+            </button>
+            <h2>السجل</h2>
+            <button className="subpage-iconbtn" title="تصفية">
+              {NavIcons.filter}
+            </button>
+          </div>
+
+          {/* Tabs: order is الكل / انتصارات / هزائم / تعادلات (right→left because RTL) */}
+          <div className="pill-tabs">
+            <button className={`pill-tab ${tab === 'all'    ? 'active' : ''}`} onClick={() => setTab('all')}>الكل</button>
+            <button className={`pill-tab ${tab === 'wins'   ? 'active' : ''}`} onClick={() => setTab('wins')}>انتصارات</button>
+            <button className={`pill-tab ${tab === 'losses' ? 'active' : ''}`} onClick={() => setTab('losses')}>هزائم</button>
+            <button className={`pill-tab ${tab === 'draws'  ? 'active' : ''}`} onClick={() => setTab('draws')}>تعادلات</button>
+          </div>
+
+          <div className="history-list">
+            {filtered.length === 0 ? (
+              <div style={{
+                margin: '20px 0', padding: '40px 16px',
+                border: '1px dashed rgba(201,169,97,0.3)',
+                borderRadius: '14px',
+                textAlign: 'center',
+                color: 'rgba(216,210,196,0.55)',
+                fontFamily: 'Cairo, sans-serif',
+              }}>
+                لا توجد مباريات في هذا التصنيف
+              </div>
+            ) : filtered.map(m => (
+              <div key={m.id} className="history-card">
+                <div className={`history-piece ${m.pieceTone}`}>{m.piece}</div>
+                <div className="history-result">
+                  <span className={`history-result-label ${m.result}`}>{resultLabel(m.result)}</span>
+                  <span className="history-score">{m.score}</span>
+                </div>
+                <div className="history-info">
+                  <div className="history-name">{m.opponent}</div>
+                  <div className="history-time">{m.time}</div>
+                </div>
+                <div className={`history-avatar color-${m.color}`}>
+                  <HoodedFigure tint={
+                    m.color === 'purple' ? '#c46bff' :
+                    m.color === 'gold'   ? '#e8c876' :
+                    m.color === 'blue'   ? '#6b9eff' :
+                                            '#cdd0d6'
+                  }/>
+                </div>
+              </div>
+            ))}
+          </div>
+        </div>
+      );
+    }
+
+    // ════════════════════════════════════════════════════════════
     // LeaderboardSection — ترتيب أفضل اللاعبين + جائزة
     // ════════════════════════════════════════════════════════════
     function LeaderboardSection({ currentUserId }) {
@@ -4390,36 +5575,30 @@
         const challengeCost = 200;
         const canAffordOnline = coins >= challengeCost;
         const [showPlayModal, setShowPlayModal] = React.useState(false);
-        const [activeNav, setActiveNav] = React.useState('home');
+        const [currentPage, setCurrentPage] = React.useState('home'); // 'home' | 'tournaments' | 'history' | 'profile'
 
         // Daily mission progress (wins today out of 3)
         const dailyProgress = Math.min(profile?.games_won ?? 0, 3);
         const dailyPct = (dailyProgress / 3) * 100;
 
-        // Chess hero board: 4 rows × 6 cols perspective board
-        const boardRows = 4, boardCols = 6;
-        // which cells have pieces: [row, col, piece-char, 'gold'|'dark-p']
-        const piecePlacement = [
-          [0,0,'♜','dark-p'], [0,1,'♞','dark-p'], [0,2,'♝','dark-p'],
-          [0,3,'♝','dark-p'], [0,4,'♞','dark-p'], [0,5,'♜','dark-p'],
-          [1,0,'♟','dark-p'], [1,1,'♟','dark-p'], [1,2,'',''],
-          [1,3,'',''],        [1,4,'♟','dark-p'], [1,5,'♟','dark-p'],
-          [2,0,'♙','gold'],  [2,1,'♙','gold'], [2,2,'',''],
-          [2,3,'',''],        [2,4,'♙','gold'], [2,5,'♙','gold'],
-          [3,0,'♖','gold'],  [3,1,'♘','gold'], [3,2,'♗','gold'],
-          [3,3,'♗','gold'],  [3,4,'♘','gold'], [3,5,'♖','gold'],
-        ];
-        const pieceMap = {};
-        piecePlacement.forEach(([r,c,p,cls]) => { if(p) pieceMap[`${r},${c}`] = {p, cls}; });
-
         return (
           <div className="home-screen" onClick={() => showProfileMenu && setShowProfileMenu(false)}>
+
+            {/* ────────────────────────────────────────────────── */}
+            {/* PAGE: HOME — شطرنج سحري                              */}
+            {/* ────────────────────────────────────────────────── */}
+            {currentPage === 'home' && (<>
 
             {/* ── TOP BAR ── */}
             <div className="home-top-bar">
               {/* RTL: first child = visual RIGHT */}
               <div className="home-top-icons">
-                <button className="home-bell-btn" title="الإشعارات">🔔</button>
+                <button className="home-bell-btn" title="الإشعارات">
+                  <svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
+                    <path d="M6 8a6 6 0 0 1 12 0c0 5 2 6.5 2 6.5H4S6 13 6 8z"/>
+                    <path d="M10.5 19a1.7 1.7 0 0 0 3 0"/>
+                  </svg>
+                </button>
                 <div
                   className="home-avatar-btn"
                   onClick={(e) => { e.stopPropagation(); setShowProfileMenu(!showProfileMenu); }}
@@ -4468,11 +5647,24 @@
 
             {/* ── SECONDARY BUTTONS ── */}
             <div className="home-secondary-row">
-              <button className="home-sec-btn" onClick={() => {}}>
-                <span>🏆</span> مسابقات
+              <button className="home-sec-btn" onClick={() => setCurrentPage('tournaments')}>
+                <svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
+                  <path d="M7 4h10v4.5a5 5 0 01-10 0z"/>
+                  <path d="M7 4.5H4v2a3 3 0 003 3"/>
+                  <path d="M17 4.5h3v2a3 3 0 01-3 3"/>
+                  <path d="M9 21h6"/><path d="M12 17v4"/><path d="M9 17h6"/>
+                </svg>
+                مسابقات
               </button>
-              <button className="home-sec-btn" onClick={() => {}}>
-                <span>📋</span> السجل
+              <button className="home-sec-btn" onClick={() => setCurrentPage('history')}>
+                <svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
+                  <rect x="6.5" y="4.5" width="11" height="16" rx="2"/>
+                  <path d="M9 4.5V3.5a1 1 0 011-1h4a1 1 0 011 1v1"/>
+                  <line x1="9.5" y1="10" x2="14.5" y2="10"/>
+                  <line x1="9.5" y1="13.5" x2="14.5" y2="13.5"/>
+                  <line x1="9.5" y1="17" x2="12.5" y2="17"/>
+                </svg>
+                السجل
               </button>
             </div>
 
@@ -4494,27 +5686,35 @@
               <div className="mission-progress-label">{dailyProgress}/3</div>
             </div>
 
-            {/* ── BOTTOM NAVIGATION ── */}
-            <div className="home-bottom-nav">
-              {[
-                {id:'home',  icon:'🏠', label:'الرئيسية'},
-                {id:'tournaments', icon:'🏆', label:'مسابقات'},
-                {id:'history',     icon:'📋', label:'السجل'},
-                {id:'profile',     icon:'👤', label:'ملفي الشخصي'},
-              ].map(tab => (
-                <button
-                  key={tab.id}
-                  className={`nav-tab ${activeNav === tab.id ? 'nav-active' : ''}`}
-                  onClick={() => {
-                    setActiveNav(tab.id);
-                    if(tab.id === 'profile') { setShowProfileMenu(true); }
-                  }}
-                >
-                  <span className="nav-tab-icon">{tab.icon}</span>
-                  <span className="nav-tab-label">{tab.label}</span>
-                </button>
-              ))}
-            </div>
+            </>)}{/* /currentPage === 'home' */}
+
+            {/* ────────────────────────────────────────────────── */}
+            {/* PAGE: TOURNAMENTS                                  */}
+            {/* ────────────────────────────────────────────────── */}
+            {currentPage === 'tournaments' && (
+              <TournamentsPage onBack={() => setCurrentPage('home')} />
+            )}
+
+            {/* ────────────────────────────────────────────────── */}
+            {/* PAGE: HISTORY                                      */}
+            {/* ────────────────────────────────────────────────── */}
+            {currentPage === 'history' && (
+              <HistoryPage onBack={() => setCurrentPage('home')} />
+            )}
+
+            {/* ────────────────────────────────────────────────── */}
+            {/* PAGE: PROFILE                                      */}
+            {/* ────────────────────────────────────────────────── */}
+            {currentPage === 'profile' && (
+              <ProfilePage
+                profile={profile}
+                user={user}
+                onOpenSettings={() => setShowProfileMenu(true)}
+              />
+            )}
+
+            {/* ── BOTTOM NAVIGATION (shared) ── */}
+            <BottomNavV2 currentPage={currentPage} onChange={setCurrentPage} />
 
             {/* ── PLAY MODE MODAL ── */}
             {showPlayModal && (
@@ -4693,21 +5893,6 @@
                 </div>
               </div>
             )}
-
-            {/* Leaderboard */}
-            <div style={{padding:'0 16px 8px', position:'relative', zIndex:2}}>
-              <LeaderboardSection currentUserId={user?.id} />
-            </div>
-
-            {/* Footer */}
-            <div className="text-center py-3 text-xs font-display" style={{color:'#3a2a12',position:'relative',zIndex:2}}>
-              ⚜ DUELIST'S GAMBIT ⚜
-            </div>
-            <div className="text-center pb-2 text-xs" style={{position:'relative',zIndex:2}}>
-              <a href="/privacy.html" style={{color:'#5a4a2a',textDecoration:'underline'}}>سياسة الخصوصية</a>
-              <span style={{color:'#3a2a12',margin:'0 0.6rem'}}>•</span>
-              <a href="/privacy.html" style={{color:'#5a4a2a',textDecoration:'underline'}}>Privacy Policy</a>
-            </div>
           </div>
         );
       }
