@@ -430,13 +430,14 @@
     async function fetchSettings() {
       const { data, error } = await sb.from('settings').select('*').eq('id', 1).maybeSingle();
       if (error) throw error;
-      return data || { id: 1, card_back_url: null };
+      return data || { id: 1, card_back_url: null, board_image_url: null };
     }
 
     async function saveSettings(settings) {
       const { error } = await sb.from('settings').upsert({
         id: 1,
-        card_back_url: settings.card_back_url || null
+        card_back_url: settings.card_back_url || null,
+        board_image_url: settings.board_image_url || null
       });
       if (error) throw error;
     }
@@ -833,6 +834,26 @@
         onUpdateSettings(newSettings);
       }
 
+      async function handleBoardUpload(file) {
+        const url = await uploadImage(file, 'board-bg');
+        const newSettings = { ...settings, board_image_url: url };
+        setGlobalSaveStatus('saving');
+        try {
+          await saveSettings(newSettings);
+          onUpdateSettings(newSettings);
+          setGlobalSaveStatus('saved');
+          setTimeout(() => setGlobalSaveStatus(null), 2000);
+        } catch (e) {
+          setGlobalSaveStatus('error');
+        }
+      }
+
+      async function handleBoardClear() {
+        const newSettings = { ...settings, board_image_url: null };
+        await saveSettings(newSettings);
+        onUpdateSettings(newSettings);
+      }
+
       return (
         <div className="bg-black/40 border border-yellow-900/40 rounded-lg p-4 mb-4">
           <div className="flex items-center justify-between mb-3 flex-wrap gap-2">
@@ -848,23 +869,33 @@
 
           <div className="grid grid-cols-1 md:grid-cols-3 gap-5">
             <div>
-              <Field label="صورة ظهر الكروت" hint="هذه الصورة ستظهر على ظهر كل الكروت المخفية (يد الخصم).">
+              <Field label="صورة ظهر الكروت" hint="هذه الصورة ستظهر على ظهر كل الكروت المخفية (يد الخصم وكروتك قبل القلب).">
                 <ImageUploader
                   currentUrl={settings.card_back_url}
                   onUpload={handleBackUpload}
                   onClear={handleBackClear}
                 />
               </Field>
+            </div>
+
+            <div>
+              <Field label="صورة الرقعة (الخلفية)" hint="1024×1024 px مربعة. تظهر كخلفية رقعة الـ 8×8.">
+                <ImageUploader
+                  currentUrl={settings.board_image_url}
+                  onUpload={handleBoardUpload}
+                  onClear={handleBoardClear}
+                />
+              </Field>
               {globalSaveStatus === 'saved' && <div className="save-pill saved mt-2">✓ تم الحفظ</div>}
             </div>
 
-            <div className="md:col-span-2 bg-yellow-950/20 border border-yellow-900/40 rounded p-3">
+            <div className="bg-yellow-950/20 border border-yellow-900/40 rounded p-3">
               <h3 className="font-display text-sm text-yellow-400 mb-2">📌 تعليمات سريعة</h3>
               <ul className="font-body text-sm space-y-1 text-gray-300 list-disc list-inside">
-                <li>قبل أي شيء، تأكد إنك شغّلت ملف <code className="text-yellow-300">setup.sql</code> في Supabase وأنشأت bucket باسم <code className="text-yellow-300">card-images</code> (Public).</li>
-                <li>إذا كانت قاعدة البيانات فارغة، اضغط <b className="text-green-400">"زرع الافتراضيات"</b> لتعبئة الكروت الـ 20.</li>
-                <li>اختر أي كارت من القائمة لتعديل تفاصيله أو رفع صورته. الحفظ في Supabase.</li>
-                <li>أي تعديل يظهر تلقائياً في اللعبة بعد تحديث الصفحة (<a href="index.html" className="text-yellow-300 underline">فتح اللعبة</a>).</li>
+                <li>قبل أي شيء، تأكد إنك شغّلت ملف <code className="text-yellow-300">setup.sql</code> + <code className="text-yellow-300">board_image_setup.sql</code> في Supabase.</li>
+                <li>إذا كانت قاعدة البيانات فارغة، اضغط <b className="text-green-400">"زرع الافتراضيات"</b>.</li>
+                <li>صورة الرقعة المثالية: <b className="text-yellow-300">1024×1024 px</b> (مربعة).</li>
+                <li>أي تعديل يظهر تلقائياً في اللعبة بعد <a href="index.html" className="text-yellow-300 underline">تحديث الصفحة</a>.</li>
               </ul>
             </div>
           </div>
@@ -1228,7 +1259,7 @@
       const [loadState, setLoadState] = useState('loading'); // loading|ready|error
       const [errorMsg, setErrorMsg] = useState('');
       const [cards, setCards] = useState([]);
-      const [settings, setSettings] = useState({ id: 1, card_back_url: null });
+      const [settings, setSettings] = useState({ id: 1, card_back_url: null, board_image_url: null });
       const [selectedId, setSelectedId] = useState(null);
       const [saveStatus, setSaveStatus] = useState({}); // {cardId: 'saving'|'saved'|'error'}
       const [globalMsg, setGlobalMsg] = useState(null);
