@@ -1002,6 +1002,228 @@
       return <AdminApp user={user} profile={profile} onSignOut={handleSignOut} />;
     }
 
+    // ════════════════════════════════════════════════════════════
+    // AddCoinsPanel — شحن لاعب بـ Player ID
+    // ════════════════════════════════════════════════════════════
+    function AddCoinsPanel() {
+      const [playerId, setPlayerId] = useState('#');
+      const [amount, setAmount] = useState('');
+      const [busy, setBusy] = useState(false);
+      const [result, setResult] = useState(null);
+      const [error, setError] = useState(null);
+      const [history, setHistory] = useState([]);
+      const [showHistory, setShowHistory] = useState(false);
+
+      const quickAmounts = [500, 1000, 2500, 5000, 7500];
+
+      // تحميل آخر 10 عمليات
+      const loadHistory = useCallback(async () => {
+        const { data, error: err } = await sb
+          .from('admin_coin_log')
+          .select('*')
+          .order('created_at', { ascending: false })
+          .limit(10);
+        if (!err && data) setHistory(data);
+      }, []);
+
+      useEffect(() => { loadHistory(); }, [loadHistory]);
+
+      async function handleSubmit() {
+        setError(null);
+        setResult(null);
+
+        const cleanedId = playerId.trim().toUpperCase();
+        const amt = parseInt(amount, 10);
+
+        if (!cleanedId || cleanedId === '#') {
+          setError('اكتب Player ID');
+          return;
+        }
+        if (isNaN(amt) || amt === 0) {
+          setError('اكتب مبلغ صحيح');
+          return;
+        }
+
+        setBusy(true);
+        const { data, error: rpcError } = await sb.rpc('admin_add_coins', {
+          target_player_id: cleanedId,
+          amount: amt,
+        });
+        setBusy(false);
+
+        if (rpcError) {
+          setError(rpcError.message || 'حصل خطأ');
+          return;
+        }
+        if (data?.success) {
+          setResult(data);
+          setPlayerId('#');
+          setAmount('');
+          loadHistory(); // أعد تحميل السجل
+        } else {
+          setError('حصل خطأ غير متوقع');
+        }
+      }
+
+      return (
+        <div className="bg-black/40 border border-yellow-900/40 rounded-lg p-4 md:p-6 mb-6">
+          <div className="flex items-center justify-between mb-4 flex-wrap gap-2">
+            <h2 className="font-display text-xl text-yellow-400">💰 شحن لاعب بالعملات</h2>
+            <button
+              onClick={() => setShowHistory(s => !s)}
+              className="text-xs px-3 py-1 rounded border"
+              style={{ borderColor: '#5a4a2a', color: '#c9a961', background: 'rgba(0,0,0,0.3)' }}
+            >
+              {showHistory ? 'إخفاء السجل' : `📋 السجل (${history.length})`}
+            </button>
+          </div>
+
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-4">
+            {/* Player ID */}
+            <div>
+              <label className="block text-xs text-gray-400 mb-1">معرّف اللاعب (Player ID)</label>
+              <input
+                type="text"
+                value={playerId}
+                onChange={e => {
+                  let v = e.target.value.toUpperCase();
+                  if (v && !v.startsWith('#')) v = '#' + v.replace(/^#+/, '');
+                  setPlayerId(v);
+                }}
+                placeholder="#ABC123"
+                className="w-full px-3 py-2 rounded font-mono text-yellow-300"
+                style={{
+                  background: 'rgba(0,0,0,0.4)',
+                  border: '1px solid #5a4a2a',
+                  letterSpacing: '0.1em',
+                  fontSize: '1.1rem',
+                }}
+                disabled={busy}
+              />
+            </div>
+
+            {/* المبلغ */}
+            <div>
+              <label className="block text-xs text-gray-400 mb-1">المبلغ <span className="text-gray-500">(يمكن سالب للخصم)</span></label>
+              <input
+                type="number"
+                value={amount}
+                onChange={e => setAmount(e.target.value)}
+                placeholder="1000"
+                className="w-full px-3 py-2 rounded font-mono text-yellow-300"
+                style={{
+                  background: 'rgba(0,0,0,0.4)',
+                  border: '1px solid #5a4a2a',
+                  fontSize: '1.1rem',
+                }}
+                disabled={busy}
+              />
+            </div>
+          </div>
+
+          {/* أزرار سريعة */}
+          <div className="flex gap-2 flex-wrap mb-4">
+            <span className="text-xs text-gray-500 self-center">سريع:</span>
+            {quickAmounts.map(a => (
+              <button
+                key={a}
+                type="button"
+                onClick={() => setAmount(String(a))}
+                disabled={busy}
+                style={{
+                  padding: '0.3rem 0.7rem',
+                  fontSize: '0.8rem',
+                  background: 'rgba(201,169,97,0.1)',
+                  border: '1px solid #5a4a2a',
+                  borderRadius: '4px',
+                  color: '#c9a961',
+                  cursor: 'pointer',
+                  fontFamily: 'monospace',
+                }}
+              >
+                +{a.toLocaleString('en-US')}
+              </button>
+            ))}
+          </div>
+
+          {/* الزر الأساسي */}
+          <button
+            className="btn w-full md:w-auto"
+            onClick={handleSubmit}
+            disabled={busy}
+            style={{
+              background: 'linear-gradient(180deg, #c9a961, #8a7340)',
+              color: '#1a1024',
+              fontWeight: 'bold',
+              padding: '0.6rem 1.5rem',
+            }}
+          >
+            {busy ? '⏳ جاري التنفيذ...' : '✓ تأكيد الشحن'}
+          </button>
+
+          {/* رسالة خطأ */}
+          {error && (
+            <div className="mt-4 p-3 rounded text-sm" style={{
+              background: 'rgba(180,40,40,0.15)',
+              border: '1px solid #7a2020',
+              color: '#ff9090',
+            }}>
+              ⚠ {error}
+            </div>
+          )}
+
+          {/* رسالة نجاح */}
+          {result && (
+            <div className="mt-4 p-4 rounded" style={{
+              background: 'rgba(40,140,80,0.15)',
+              border: '1px solid #2a6a4a',
+              color: '#9eeac0',
+            }}>
+              <div className="font-display text-lg mb-2">✓ تمت العملية بنجاح</div>
+              <div className="text-sm space-y-1">
+                <div>
+                  <b className="text-yellow-300">{result.display_name}</b>
+                  <span className="text-gray-400 mx-2">•</span>
+                  <span className="font-mono">{result.player_id}</span>
+                </div>
+                <div>
+                  المبلغ المُحوّل: <b>{result.amount_added >= 0 ? '+' : ''}{result.amount_added.toLocaleString('en-US')}</b>
+                </div>
+                <div className="text-xs" style={{ color: '#7ac09a' }}>
+                  الرصيد: {result.old_balance.toLocaleString('en-US')} → <b>{result.new_balance.toLocaleString('en-US')}</b>
+                </div>
+              </div>
+            </div>
+          )}
+
+          {/* سجل العمليات */}
+          {showHistory && (
+            <div className="mt-4 pt-4 border-t border-yellow-900/30">
+              <h3 className="font-display text-sm text-yellow-300 mb-2">📋 آخر 10 عمليات</h3>
+              {history.length === 0 ? (
+                <div className="text-sm text-gray-500 text-center py-3">مفيش عمليات بعد</div>
+              ) : (
+                <div className="space-y-1">
+                  {history.map(h => (
+                    <div key={h.id} className="text-xs flex flex-wrap items-center gap-2 p-2 rounded" style={{ background: 'rgba(0,0,0,0.3)' }}>
+                      <span className="font-mono text-yellow-300">{h.target_player_id}</span>
+                      <span style={{ color: h.amount > 0 ? '#7ac09a' : '#ff9090', fontWeight: 'bold' }}>
+                        {h.amount > 0 ? '+' : ''}{h.amount.toLocaleString('en-US')}
+                      </span>
+                      <span className="text-gray-500">
+                        ({h.old_balance.toLocaleString('en-US')} → {h.new_balance.toLocaleString('en-US')})
+                      </span>
+                      <span className="text-gray-600 ml-auto">{new Date(h.created_at).toLocaleString('ar-EG', { dateStyle: 'short', timeStyle: 'short' })}</span>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
+          )}
+        </div>
+      );
+    }
+
     function AdminApp({ user, profile, onSignOut }) {
       const [loadState, setLoadState] = useState('loading'); // loading|ready|error
       const [errorMsg, setErrorMsg] = useState('');
@@ -1212,6 +1434,8 @@
 
           {/* Body */}
           <main className="p-4 md:p-6 max-w-7xl mx-auto">
+            <AddCoinsPanel />
+
             <GlobalSettings
               cards={cards}
               settings={settings}
