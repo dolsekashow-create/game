@@ -4645,6 +4645,337 @@
     }
 
     // ════════════════════════════════════════════════════════════
+    // EditNameModal — edit display_name in profiles
+    // ════════════════════════════════════════════════════════════
+    function EditNameModal({ profile, onClose, onSaved }) {
+      const [name, setName] = useState(profile?.display_name || '');
+      const [busy, setBusy] = useState(false);
+      const [err, setErr]   = useState(null);
+
+      async function save() {
+        const trimmed = name.trim();
+        if (trimmed.length < 2) { setErr('الاسم لازم 2 حروف على الأقل'); return; }
+        if (trimmed.length > 30) { setErr('الاسم طويل أوي (max 30 حرف)'); return; }
+        setBusy(true); setErr(null);
+        const { error } = await sb.from('profiles').update({ display_name: trimmed }).eq('id', profile.id);
+        setBusy(false);
+        if (error) { setErr(error.message); return; }
+        onSaved?.(trimmed);
+        onClose?.();
+      }
+
+      return (
+        <div className="modal-backdrop" onClick={onClose}>
+          <div className="modal" onClick={e => e.stopPropagation()} style={{maxWidth:'380px'}}>
+            <h2 className="font-display text-xl text-yellow-400 text-center mb-4">تعديل الاسم</h2>
+            <input
+              className="input-mobile"
+              value={name}
+              maxLength={30}
+              onChange={e => setName(e.target.value)}
+              autoFocus
+              dir="auto"
+              style={{textAlign:'right', marginBottom: 8, fontFamily:'Cairo, sans-serif', fontSize:'1.05rem'}}
+              placeholder="اسمك الجديد"
+            />
+            {err && <div className="text-sm text-red-300 mb-2 text-center" style={{fontFamily:'Cairo'}}>{err}</div>}
+            <div style={{display:'flex', gap:8, marginTop:12}}>
+              <button className="btn-primary-mobile" onClick={save} disabled={busy} style={{flex:1, fontFamily:'Cairo, sans-serif'}}>
+                {busy ? '…' : 'حفظ'}
+              </button>
+              <button className="btn-primary-mobile" onClick={onClose}
+                style={{flex:1, fontFamily:'Cairo, sans-serif', background:'rgba(255,255,255,0.06)', color:'#d8d2c4'}}>
+                إلغاء
+              </button>
+            </div>
+          </div>
+        </div>
+      );
+    }
+
+    // ════════════════════════════════════════════════════════════
+    // uploadAvatarFile — uploads to the 'avatars' bucket and returns a public URL
+    // ════════════════════════════════════════════════════════════
+    async function uploadAvatarFile(file, userId) {
+      if (!file) throw new Error('no_file');
+      if (file.size > 2 * 1024 * 1024) throw new Error('الصورة أكبر من 2 ميجا');
+      if (!/^image\/(jpeg|png|webp|gif)$/.test(file.type)) throw new Error('الصورة لازم JPG / PNG / WEBP / GIF');
+
+      const ext = (file.name.split('.').pop() || 'jpg').toLowerCase();
+      // path = {uid}/avatar-{timestamp}.{ext}  — the RLS policy uses (storage.foldername)[1] = uid
+      const path = `${userId}/avatar-${Date.now()}.${ext}`;
+      const { error: upErr } = await sb.storage.from('avatars').upload(path, file, {
+        cacheControl: '3600', upsert: false, contentType: file.type,
+      });
+      if (upErr) throw upErr;
+      const { data: pub } = sb.storage.from('avatars').getPublicUrl(path);
+      const url = pub?.publicUrl;
+      if (!url) throw new Error('فشل الحصول على رابط الصورة');
+      const { error: prErr } = await sb.from('profiles').update({ avatar_url: url }).eq('id', userId);
+      if (prErr) throw prErr;
+      return url;
+    }
+
+    // ════════════════════════════════════════════════════════════
+    // NotificationsBell — bell button + dropdown with unread badge
+    // ════════════════════════════════════════════════════════════
+    function NotificationsBell({ userId }) {
+      const [open, setOpen]   = useState(false);
+      const [items, setItems] = useState([]);
+      const [loaded, setLoaded] = useState(false);
+
+      const unread = items.filter(n => !n.read_at).length;
+
+      async function load() {
+        if (!userId) return;
+        const { data } = await sb
+          .from('notifications')
+          .select('*')
+          .eq('user_id', userId)
+          .order('created_at', { ascending: false })
+          .limit(20);
+        setItems(data || []);
+        setLoaded(true);
+      }
+
+      // initial load + refresh every 30s while mounted
+      useEffect(() => {
+        load();
+        const t = setInterval(load, 30000);
+        return () => clearInterval(t);
+        // eslint-disable-next-line react-hooks/exhaustive-deps
+      }, [userId]);
+
+      async function toggle(e) {
+        e.stopPropagation();
+        if (!open && !loaded) await load();
+        setOpen(v => !v);
+        if (!open && unread > 0) {
+          // optimistic: mark read locally
+          setItems(curr => curr.map(n => ({...n, read_at: n.read_at || new Date().toISOString()})));
+          try { await sb.rpc('mark_notifications_read', { p_ids: null }); } catch {}
+        }
+      }
+
+      function timeAgo(ts) {
+        const now = Date.now();
+        const t = new Date(ts).getTime();
+        const s = Math.max(0, Math.floor((now - t) / 1000));
+        if (s < 60) return 'الآن';
+        if (s < 3600) return `منذ ${Math.floor(s/60)} د`;
+        if (s < 86400) return `منذ ${Math.floor(s/3600)} س`;
+        return `منذ ${Math.floor(s/86400)} يوم`;
+      }
+
+      return (
+        <div style={{position:'relative'}} onClick={e => e.stopPropagation()}>
+          <button className="home-bell-btn" onClick={toggle} title="الإشعارات">
+            <svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
+              <path d="M6 8a6 6 0 0 1 12 0c0 5 2 6.5 2 6.5H4S6 13 6 8z"/>
+              <path d="M10.5 19a1.7 1.7 0 0 0 3 0"/>
+            </svg>
+            {unread > 0 && (
+              <span style={{
+                position:'absolute', top:-2, right:-2,
+                minWidth:18, height:18, borderRadius:9,
+                background:'#d94545', color:'#fff',
+                fontFamily:'Cairo, sans-serif', fontSize:'0.65rem', fontWeight:800,
+                display:'flex', alignItems:'center', justifyContent:'center',
+                padding:'0 5px', border:'2px solid #0a0712', lineHeight:1,
+              }}>{unread > 9 ? '9+' : unread}</span>
+            )}
+          </button>
+
+          {open && (
+            <div style={{
+              position:'fixed', top:70, left:16, right:16, maxWidth:380,
+              marginLeft:'auto', marginRight:'auto',
+              background:'linear-gradient(165deg,#15101f,#0a0712)',
+              border:'1px solid rgba(201,169,97,0.3)',
+              borderRadius:14, zIndex:600,
+              boxShadow:'0 16px 40px rgba(0,0,0,0.7)',
+              maxHeight:'60vh', overflowY:'auto',
+              fontFamily:'Cairo, sans-serif',
+            }}>
+              <div style={{padding:'12px 16px', borderBottom:'1px solid rgba(201,169,97,0.2)',
+                  fontWeight:700, color:'#e8c876'}}>الإشعارات</div>
+              {items.length === 0 ? (
+                <div style={{padding:'28px 16px', textAlign:'center', color:'rgba(216,210,196,0.5)'}}>
+                  لا توجد إشعارات بعد
+                </div>
+              ) : items.map(n => (
+                <div key={n.id} style={{
+                  padding:'12px 16px', borderBottom:'1px solid rgba(201,169,97,0.1)',
+                  display:'flex', gap:12, alignItems:'flex-start',
+                }}>
+                  <div style={{fontSize:'1.4rem', flexShrink:0, marginTop:2}}>{n.icon || '🔔'}</div>
+                  <div style={{flex:1, minWidth:0}}>
+                    <div style={{color:'#f0e0a6', fontSize:'0.95rem', fontWeight:700, marginBottom:2}}>{n.title}</div>
+                    {n.body && <div style={{color:'rgba(216,210,196,0.7)', fontSize:'0.85rem', lineHeight:1.4}}>{n.body}</div>}
+                    <div style={{color:'rgba(216,210,196,0.4)', fontSize:'0.72rem', marginTop:4}}>{timeAgo(n.created_at)}</div>
+                  </div>
+                </div>
+              ))}
+            </div>
+          )}
+        </div>
+      );
+    }
+
+    // ════════════════════════════════════════════════════════════
+    // MissionToast — small celebratory toast when daily mission completes
+    // ════════════════════════════════════════════════════════════
+    function MissionToast({ reward, onDismiss }) {
+      return (
+        <div style={{
+          position:'fixed', top:'15%', left:'50%', transform:'translateX(-50%)',
+          background:'linear-gradient(135deg, #4a3a14, #2a1f08)',
+          border:'2px solid #e8c876', borderRadius:14,
+          padding:'14px 22px', zIndex:1000,
+          boxShadow:'0 0 40px rgba(232,200,118,0.6), 0 8px 24px rgba(0,0,0,0.7)',
+          display:'flex', alignItems:'center', gap:14,
+          fontFamily:'Cairo, sans-serif',
+          animation:'fadein 0.3s ease-out',
+        }} onClick={onDismiss}>
+          <div style={{fontSize:'2rem'}}>🪙</div>
+          <div>
+            <div style={{color:'#f5d97f', fontWeight:800, fontSize:'1.05rem'}}>أكملت المهمة اليومية!</div>
+            <div style={{color:'#e8c876', fontSize:'0.9rem'}}>+{reward} عملة</div>
+          </div>
+        </div>
+      );
+    }
+
+    // ════════════════════════════════════════════════════════════
+    // SettingsModal — full settings screen replacing the old dropdown
+    // ════════════════════════════════════════════════════════════
+    function SettingsModal({ profile, user, onClose, onSignOut, onRefresh, onEditName, onEditAvatar, onOpenRules, onOpenAdmin, onOpenRecharge }) {
+      return (
+        <div className="modal-backdrop" onClick={onClose}>
+          <div className="modal" onClick={e => e.stopPropagation()} style={{maxWidth:'420px', maxHeight:'90vh', overflowY:'auto', fontFamily:'Cairo, sans-serif'}}>
+            <h2 style={{fontSize:'1.3rem', color:'#e8c876', textAlign:'center', marginBottom:18, fontWeight:800}}>
+              الإعدادات
+            </h2>
+
+            <div style={{display:'flex', alignItems:'center', gap:14, padding:'12px 14px',
+                borderRadius:12, background:'rgba(255,255,255,0.04)', marginBottom:14}}>
+              <div style={{width:54, height:54, borderRadius:'50%', overflow:'hidden',
+                  border:'2px solid #c9a961', background:'#1a1228', flexShrink:0}}>
+                {profile?.avatar_url
+                  ? <img src={profile.avatar_url} alt="" style={{width:'100%', height:'100%', objectFit:'cover'}}/>
+                  : <div style={{width:'100%', height:'100%'}}><HoodedFigure tint="#a060ff"/></div>
+                }
+              </div>
+              <div style={{flex:1, minWidth:0}}>
+                <div style={{color:'#f0e0a6', fontSize:'1.05rem', fontWeight:700}}>{profile?.display_name || 'لاعب'}</div>
+                <div style={{color:'rgba(216,210,196,0.5)', fontSize:'0.78rem', overflow:'hidden', textOverflow:'ellipsis', whiteSpace:'nowrap'}}>
+                  {user?.email || 'لاعب ضيف'}
+                </div>
+              </div>
+            </div>
+
+            {[
+              { icon:'✏️', label:'تعديل الاسم',     onClick: () => { onClose(); onEditName(); } },
+              { icon:'🖼',  label:'تغيير الصورة',    onClick: () => { onClose(); onEditAvatar(); } },
+              { icon:'💰', label:'شحن العملات',     onClick: () => { onClose(); onOpenRecharge(); } },
+              { icon:'📜', label:'قواعد اللعبة',    onClick: () => { onClose(); onOpenRules(); } },
+              ...(profile?.player_id ? [{ icon:'🆔', label:`معرّفك: ${profile.player_id} — اضغط للنسخ`,
+                  onClick: async () => { try { await navigator.clipboard.writeText(profile.player_id); } catch {} } }] : []),
+              ...(profile?.is_admin ? [{ icon:'⚙', label:'لوحة التحكم (Admin)', onClick: () => { window.location.href = 'admin.html'; } }] : []),
+              ...(profile?.is_admin ? [{ icon:'💎', label:'شحن لاعب آخر (Admin)', onClick: () => { onClose(); onOpenAdmin(); } }] : []),
+            ].map((it, i) => (
+              <div key={i} onClick={it.onClick}
+                style={{display:'flex', alignItems:'center', gap:12, padding:'13px 14px',
+                    borderRadius:10, background:'rgba(255,255,255,0.03)',
+                    border:'1px solid rgba(201,169,97,0.12)', marginBottom:6,
+                    cursor:'pointer', color:'#d8d2c4', fontSize:'0.98rem', fontWeight:600}}>
+                <span style={{fontSize:'1.15rem'}}>{it.icon}</span>
+                <span style={{flex:1}}>{it.label}</span>
+                <span style={{color:'rgba(201,169,97,0.5)'}}>{NavIcons.chevron}</span>
+              </div>
+            ))}
+
+            <div onClick={onSignOut}
+              style={{display:'flex', alignItems:'center', gap:12, padding:'13px 14px',
+                  borderRadius:10, background:'rgba(217,69,69,0.08)',
+                  border:'1px solid rgba(217,69,69,0.3)', marginTop:14,
+                  cursor:'pointer', color:'#f4a8a8', fontSize:'0.98rem', fontWeight:700}}>
+              <span style={{fontSize:'1.15rem'}}>⎋</span>
+              <span style={{flex:1}}>تسجيل خروج</span>
+            </div>
+
+            <button className="btn-primary-mobile" onClick={onClose}
+              style={{marginTop:16, background:'rgba(255,255,255,0.06)', color:'#d8d2c4'}}>
+              رجوع
+            </button>
+          </div>
+        </div>
+      );
+    }
+
+    // ════════════════════════════════════════════════════════════
+    // StatsPage — detailed stats view (real data from profile)
+    // ════════════════════════════════════════════════════════════
+    function StatsPage({ profile, onBack }) {
+      const gp = profile?.games_played ?? 0;
+      const gw = profile?.games_won    ?? 0;
+      const gl = Math.max(0, gp - gw);
+      const wr = gp > 0 ? Math.round((gw / gp) * 100) : 0;
+      const rt = profile?.rating ?? 1000;
+      const lvl = Math.max(1, Math.floor(gw / 35) + 1);
+
+      const rows = [
+        ['إجمالي المباريات',    gp.toLocaleString('en-US')],
+        ['الانتصارات',          gw.toLocaleString('en-US')],
+        ['الهزائم',             gl.toLocaleString('en-US')],
+        ['نسبة الفوز',          `${wr}%`],
+        ['التصنيف الحالي',      rt.toLocaleString('en-US')],
+        ['المستوى',             lvl.toString()],
+      ];
+      return (
+        <div className="modal-backdrop" onClick={onBack}>
+          <div className="modal" onClick={e => e.stopPropagation()} style={{maxWidth:'420px', fontFamily:'Cairo, sans-serif'}}>
+            <h2 style={{fontSize:'1.3rem', color:'#e8c876', textAlign:'center', marginBottom:18, fontWeight:800}}>
+              الإحصائيات
+            </h2>
+            {rows.map(([k, v]) => (
+              <div key={k} style={{
+                display:'flex', justifyContent:'space-between', alignItems:'center',
+                padding:'14px 16px', borderRadius:10, marginBottom:6,
+                background:'rgba(255,255,255,0.03)',
+                border:'1px solid rgba(201,169,97,0.12)',
+              }}>
+                <span style={{color:'rgba(216,210,196,0.7)', fontSize:'0.95rem'}}>{k}</span>
+                <span style={{color:'#e8c876', fontSize:'1.1rem', fontWeight:800}}>{v}</span>
+              </div>
+            ))}
+            <button className="btn-primary-mobile" onClick={onBack} style={{marginTop:16, background:'rgba(255,255,255,0.06)', color:'#d8d2c4'}}>
+              رجوع
+            </button>
+          </div>
+        </div>
+      );
+    }
+
+    // ════════════════════════════════════════════════════════════
+    // ComingSoonModal — for features not yet implemented
+    // ════════════════════════════════════════════════════════════
+    function ComingSoonModal({ title, message, onClose }) {
+      return (
+        <div className="modal-backdrop" onClick={onClose}>
+          <div className="modal" onClick={e => e.stopPropagation()} style={{maxWidth:'380px', textAlign:'center', fontFamily:'Cairo, sans-serif'}}>
+            <div style={{fontSize:'3rem', marginBottom:8}}>✨</div>
+            <h2 style={{fontSize:'1.25rem', color:'#e8c876', marginBottom:8, fontWeight:800}}>{title}</h2>
+            <p style={{color:'rgba(216,210,196,0.7)', fontSize:'0.95rem', lineHeight:1.5, marginBottom:18}}>
+              {message || 'هذه الميزة قيد التطوير وقريباً ستكون متاحة. شكراً لصبرك! 🙏'}
+            </p>
+            <button className="btn-primary-mobile" onClick={onClose}>تمام</button>
+          </div>
+        </div>
+      );
+    }
+
+    // ════════════════════════════════════════════════════════════
     // NavIcons — SVG line icons used in the new bottom navigation
     // ════════════════════════════════════════════════════════════
     const NavIcons = {
@@ -4867,41 +5198,44 @@
     }
 
     // ════════════════════════════════════════════════════════════
-    // ProfilePage — صفحة "ملفي الشخصي"
+    // ProfilePage — "ملفي الشخصي" with editable name + avatar upload
     // ════════════════════════════════════════════════════════════
-    function ProfilePage({ profile, user, onOpenSettings }) {
+    function ProfilePage({ profile, user, onOpenSettings, onOpenStats, onOpenAchievements, onOpenFriends, onEditName, onEditAvatar }) {
       const displayName  = profile?.display_name || 'لاعب';
       const gamesPlayed  = profile?.games_played ?? 0;
       const gamesWon     = profile?.games_won    ?? 0;
       const rating       = profile?.rating       ?? 1000;
       const winRate      = gamesPlayed > 0 ? Math.round((gamesWon / gamesPlayed) * 100) : 0;
       const level        = Math.max(1, Math.floor(gamesWon / 35) + 1);
-      // Master rank progress (placeholder until backed by a real schema column)
-      const rankCurrent  = rating;
-      const rankTarget   = Math.ceil((rating + 250) / 250) * 250;
-      const rankProgress = Math.min(100, Math.round(((rankCurrent - (rankTarget - 500)) / 500) * 100));
+
+      // Tiered rank derived from rating
+      const tier = rating < 800  ? { name:'البرونزي', floor: 0,    ceil: 800  } :
+                   rating < 1000 ? { name:'الفضي',    floor: 800,  ceil: 1000 } :
+                   rating < 1300 ? { name:'الذهبي',   floor: 1000, ceil: 1300 } :
+                   rating < 1700 ? { name:'الماستر',  floor: 1300, ceil: 1700 } :
+                                   { name:'العظيم',  floor: 1700, ceil: rating + 500 };
+      const rankProgress = Math.min(100, Math.max(0,
+        Math.round(((rating - tier.floor) / (tier.ceil - tier.floor)) * 100)));
 
       const menu = [
-        { icon: NavIcons.barChart, label: 'الإحصائيات' },
-        { icon: NavIcons.medal,    label: 'الإنجازات' },
-        { icon: NavIcons.friends,  label: 'الأصدقاء' },
-        { icon: NavIcons.gear,     label: 'الإعدادات', onClick: onOpenSettings },
+        { icon: NavIcons.barChart, label: 'الإحصائيات', onClick: onOpenStats },
+        { icon: NavIcons.medal,    label: 'الإنجازات',  onClick: onOpenAchievements },
+        { icon: NavIcons.friends,  label: 'الأصدقاء',   onClick: onOpenFriends },
+        { icon: NavIcons.gear,     label: 'الإعدادات',  onClick: onOpenSettings },
       ];
 
       return (
         <div className="subpage" dir="rtl">
-          {/* Header: settings on the visual right (start in RTL), title centered */}
           <div className="subpage-header">
             <button className="subpage-iconbtn" onClick={onOpenSettings} title="الإعدادات">
               {NavIcons.gear}
             </button>
             <h2>ملفي الشخصي</h2>
-            <div style={{width: 38}} /> {/* spacer for symmetry */}
+            <div style={{width: 38}} />
           </div>
 
-          {/* Hero: avatar + name + subtitle */}
           <div className="profile-hero">
-            <div className="profile-avatar-wrap">
+            <div className="profile-avatar-wrap" onClick={onEditAvatar} style={{cursor:'pointer'}} title="اضغط لتغيير الصورة">
               <div className="profile-avatar">
                 {profile?.avatar_url
                   ? <img src={profile.avatar_url} alt="" />
@@ -4909,12 +5243,31 @@
                 }
               </div>
               <div className="profile-level-badge">{level}</div>
+              {/* tiny camera badge overlay */}
+              <div style={{
+                position:'absolute', bottom:'18px', right:'-2px',
+                width:30, height:30, borderRadius:'50%',
+                background:'#1a1228', border:'2px solid #c9a961',
+                display:'flex', alignItems:'center', justifyContent:'center',
+                color:'#e8c876', boxShadow:'0 2px 6px rgba(0,0,0,0.5)',
+              }}>
+                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                  <path d="M23 19a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h4l2-3h6l2 3h4a2 2 0 0 1 2 2z"/>
+                  <circle cx="12" cy="13" r="4"/>
+                </svg>
+              </div>
             </div>
-            <div className="profile-name">{displayName}</div>
-            <div className="profile-subtitle">أسطورة شطرنج</div>
+            <div className="profile-name" onClick={onEditName} style={{cursor:'pointer'}} title="اضغط لتعديل الاسم">
+              {displayName}
+              <svg style={{verticalAlign:'middle', marginRight:6, opacity:0.6}}
+                   width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                <path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/>
+                <path d="M18.5 2.5a2.12 2.12 0 1 1 3 3L12 15l-4 1 1-4z"/>
+              </svg>
+            </div>
+            <div className="profile-subtitle">{tier.name === 'الماستر' ? 'أسطورة شطرنج' : `لاعب ${tier.name}`}</div>
           </div>
 
-          {/* 4-stat card */}
           <div className="profile-stats-card">
             <div className="profile-stat">
               <div className="profile-stat-value">{gamesPlayed.toLocaleString('en-US')}</div>
@@ -4934,12 +5287,11 @@
             </div>
           </div>
 
-          {/* Rank progress card */}
           <div className="profile-rank-card">
             <div className="profile-rank-info">
-              <div className="profile-rank-name">الماستر</div>
+              <div className="profile-rank-name">{tier.name}</div>
               <div className="profile-rank-progress-text">
-                {rankCurrent.toLocaleString('en-US')} / {rankTarget.toLocaleString('en-US')}
+                {rating.toLocaleString('en-US')} / {tier.ceil.toLocaleString('en-US')}
               </div>
               <div className="profile-rank-bar">
                 <div className="profile-rank-fill" style={{ width: `${rankProgress}%` }}/>
@@ -4948,7 +5300,6 @@
             <RankEmblem />
           </div>
 
-          {/* Menu list */}
           <div className="profile-menu-list">
             {menu.map((m, i) => (
               <div key={i} className="profile-menu-item" onClick={m.onClick}>
@@ -4963,142 +5314,316 @@
     }
 
     // ════════════════════════════════════════════════════════════
-    // TournamentsPage — صفحة "المسابقات"
+    // TournamentsPage — صفحة "المسابقات" (real from DB + join RPC)
     // ════════════════════════════════════════════════════════════
-    function TournamentsPage({ onBack }) {
-      const [tab, setTab] = useState('list'); // 'list' | 'mine'
-
-      // Countdown to a fixed weekly-tournament end (Friday 23:59:59 local)
+    function TournamentsPage({ onBack, userId, profile, onRefreshProfile }) {
+      const [tab, setTab] = useState('list');                // 'list' | 'mine'
+      const [list, setList]     = useState([]);
+      const [mine, setMine]     = useState([]);             // tournament_entries for me, with embedded tournament
+      const [loading, setLoading] = useState(true);
+      const [joining, setJoining] = useState(null);          // tournament id being joined
+      const [feedback, setFeedback] = useState(null);        // { ok: bool, msg: string }
       const [tick, setTick] = useState(0);
+
       useEffect(() => {
         const t = setInterval(() => setTick(x => x + 1), 1000);
         return () => clearInterval(t);
       }, []);
-      const remaining = useMemo(() => {
-        const now = new Date();
-        const day = now.getDay();
-        const daysUntilFri = ((5 - day + 7) % 7) || 7;
-        const end = new Date(now);
-        end.setDate(now.getDate() + daysUntilFri);
-        end.setHours(23, 59, 59, 0);
-        let diff = Math.max(0, end - now);
+
+      async function reload() {
+        if (!userId) { setLoading(false); return; }
+        setLoading(true);
+        try {
+          const [{ data: tours }, { data: entries }] = await Promise.all([
+            sb.from('tournaments')
+              .select('*')
+              .order('ends_at', { ascending: true }),
+            sb.from('tournament_entries')
+              .select('id, tournament_id, joined_at, status, tournaments(*)')
+              .eq('user_id', userId)
+              .order('joined_at', { ascending: false }),
+          ]);
+          setList(tours || []);
+          setMine(entries || []);
+        } catch (e) {
+          console.warn('[TournamentsPage] reload error:', e?.message || e);
+        } finally {
+          setLoading(false);
+        }
+      }
+      useEffect(() => { reload(); /* eslint-disable-next-line */ }, [userId]);
+
+      const joinedIds = new Set(mine.map(e => e.tournament_id));
+
+      async function handleJoin(tournament) {
+        if (joinedIds.has(tournament.id)) { setFeedback({ ok:false, msg:'أنت مشترك في هذه البطولة بالفعل' }); return; }
+        const coins = profile?.coins ?? 0;
+        if (coins < (tournament.entry_fee || 0)) {
+          setFeedback({ ok:false, msg:`رصيدك (${coins.toLocaleString('en-US')}) أقل من رسوم الدخول (${(tournament.entry_fee||0).toLocaleString('en-US')}). اشحن العملات أولاً.` });
+          return;
+        }
+        setJoining(tournament.id);
+        setFeedback(null);
+        try {
+          const { data, error } = await sb.rpc('join_tournament', { p_tournament_id: tournament.id });
+          if (error) { setFeedback({ ok:false, msg: error.message }); }
+          else if (!data?.ok) {
+            const errMap = {
+              insufficient_coins:   'الرصيد غير كافي',
+              already_joined:       'أنت مشترك في هذه البطولة بالفعل',
+              tournament_full:      'البطولة ممتلئة',
+              tournament_closed:    'البطولة مغلقة',
+              tournament_not_found: 'البطولة غير موجودة',
+              not_authenticated:    'سجّل الدخول أولاً',
+            };
+            setFeedback({ ok:false, msg: errMap[data?.error] || (data?.error || 'فشل الاشتراك') });
+          } else {
+            setFeedback({ ok:true, msg:`تم الاشتراك! رصيدك الجديد: ${(data.new_balance||0).toLocaleString('en-US')} عملة` });
+            await reload();
+            if (typeof onRefreshProfile === 'function') onRefreshProfile();
+          }
+        } catch (e) {
+          setFeedback({ ok:false, msg: e?.message || 'خطأ غير متوقع' });
+        } finally {
+          setJoining(null);
+          setTimeout(() => setFeedback(null), 5000);
+        }
+      }
+
+      // Pick a featured tournament for the hero (highest prize pool, still open)
+      const featured = list.find(t => t.status === 'open') || list[0] || null;
+
+      function fmtCountdown(endsAt) {
+        if (!endsAt) return { d:'00', h:'00', m:'00', s:'00' };
+        const now = Date.now();
+        let diff = Math.max(0, new Date(endsAt).getTime() - now);
         const d = Math.floor(diff / 86400000); diff -= d * 86400000;
         const h = Math.floor(diff / 3600000);  diff -= h * 3600000;
         const m = Math.floor(diff / 60000);    diff -= m * 60000;
         const s = Math.floor(diff / 1000);
         const pad = n => n.toString().padStart(2, '0');
         return { d: pad(d), h: pad(h), m: pad(m), s: pad(s) };
-      }, [tick]);
-
-      // Mock tournaments list (display-only — backed by a real table when one exists)
-      const tournaments = [
-        { id:1, name:'كأس النخبة',   players:128, fee:500, ends:'05 ي : 19 س', tone:'gold' },
-        { id:2, name:'بطولة التحدي', players:64,  fee:250, ends:'05 ي : 10 س', tone:'silver' },
-        { id:3, name:'مباراة سريعة', players:0,   playersLabel:'غير محدود', fee:100, ends:'00 ي : 10 س', tone:'bronze' },
-      ];
+      }
+      function fmtEndsShort(endsAt) {
+        if (!endsAt) return '';
+        const c = fmtCountdown(endsAt);
+        return `${c.d} ي : ${c.h} س`;
+      }
+      const heroC = featured ? fmtCountdown(featured.ends_at) : { d:'00', h:'00', m:'00', s:'00' };
+      void tick; // keep this in scope so the countdown re-renders every second
 
       return (
         <div className="subpage" dir="rtl">
-          {/* Header: back arrow on the right (start in RTL), title centered, info on left */}
           <div className="subpage-header">
-            <button className="subpage-iconbtn" onClick={onBack} title="رجوع">
-              {NavIcons.back}
-            </button>
+            <button className="subpage-iconbtn" onClick={onBack} title="رجوع">{NavIcons.back}</button>
             <h2>المسابقات</h2>
-            <button className="subpage-iconbtn" title="معلومات">
-              {NavIcons.info}
-            </button>
+            <button className="subpage-iconbtn" title="معلومات">{NavIcons.info}</button>
           </div>
 
-          {/* Featured hero */}
-          <div className="tour-hero">
-            <div className="tour-hero-text">
-              <div className="tour-hero-title">بطولة الأساطير</div>
-              <div className="tour-hero-sub">جوائز كبرى بانتظارك</div>
-              <div className="tour-hero-countdown-row">
-                <div className="tour-hero-countdown-label">ينتهي خلال:</div>
-                <div className="tour-hero-countdown">
-                  <span>{remaining.d}</span><span className="sep">:</span>
-                  <span>{remaining.h}</span><span className="sep">:</span>
-                  <span>{remaining.m}</span><span className="sep">:</span>
-                  <span>{remaining.s}</span>
+          {featured && (
+            <div className="tour-hero">
+              <div className="tour-hero-text">
+                <div className="tour-hero-title">{featured.name || 'بطولة الأساطير'}</div>
+                <div className="tour-hero-sub">{featured.description || 'جوائز كبرى بانتظارك'}</div>
+                <div className="tour-hero-countdown-row">
+                  <div className="tour-hero-countdown-label">ينتهي خلال:</div>
+                  <div className="tour-hero-countdown">
+                    <span>{heroC.d}</span><span className="sep">:</span>
+                    <span>{heroC.h}</span><span className="sep">:</span>
+                    <span>{heroC.m}</span><span className="sep">:</span>
+                    <span>{heroC.s}</span>
+                  </div>
                 </div>
               </div>
+              <TrophyHero />
             </div>
-            <TrophyHero />
-          </div>
+          )}
 
-          {/* Tabs */}
+          {feedback && (
+            <div style={{
+              margin:'0 18px 12px', padding:'10px 14px', borderRadius:10,
+              background: feedback.ok ? 'rgba(30,120,60,0.18)' : 'rgba(180,30,30,0.18)',
+              border: `1px solid ${feedback.ok ? 'rgba(60,180,90,0.45)' : 'rgba(180,30,30,0.45)'}`,
+              color: feedback.ok ? '#b8f3c8' : '#f3b8b8',
+              fontFamily:'Cairo, sans-serif', fontSize:'0.92rem', textAlign:'center',
+            }}>{feedback.msg}</div>
+          )}
+
           <div className="pill-tabs">
-            <button
-              className={`pill-tab ${tab === 'mine' ? 'active' : ''}`}
-              onClick={() => setTab('mine')}
-            >مسابقاتي</button>
-            <button
-              className={`pill-tab ${tab === 'list' ? 'active' : ''}`}
-              onClick={() => setTab('list')}
-            >قائمة المسابقات</button>
+            <button className={`pill-tab ${tab === 'mine' ? 'active' : ''}`} onClick={() => setTab('mine')}>مسابقاتي</button>
+            <button className={`pill-tab ${tab === 'list' ? 'active' : ''}`} onClick={() => setTab('list')}>قائمة المسابقات</button>
           </div>
 
-          {tab === 'list' ? (
-            <div className="tour-list">
-              {tournaments.map(t => (
-                <div key={t.id} className="tour-card">
-                  <div className="tour-card-row">
-                    <TrophySmall tone={t.tone}/>
-                    <div className="tour-card-info">
-                      <div className="tour-card-name">{t.name}</div>
-                      <div className="tour-card-players">{t.playersLabel || `${t.players} لاعب`}</div>
-                    </div>
-                    <div className="tour-card-fee">
-                      <div className="tour-card-fee-label">رسوم الدخول</div>
-                      <div className="tour-card-fee-amount">
-                        <span>{t.fee}</span><span className="coin-dot"></span>
+          {loading ? (
+            <div style={{margin:'24px 18px', padding:'40px 16px', textAlign:'center', color:'rgba(216,210,196,0.55)', fontFamily:'Cairo'}}>
+              جاري التحميل…
+            </div>
+          ) : tab === 'list' ? (
+            list.length === 0 ? (
+              <div style={{margin:'24px 18px', padding:'40px 16px', border:'1px dashed rgba(201,169,97,0.3)',
+                  borderRadius:14, textAlign:'center', color:'rgba(216,210,196,0.55)', fontFamily:'Cairo'}}>
+                لا توجد بطولات متاحة حالياً
+              </div>
+            ) : (
+              <div className="tour-list">
+                {list.map((t, i) => {
+                  const isJoined = joinedIds.has(t.id);
+                  const tone = i % 3 === 0 ? 'gold' : i % 3 === 1 ? 'silver' : 'bronze';
+                  return (
+                    <div key={t.id} className="tour-card">
+                      <div className="tour-card-row">
+                        <TrophySmall tone={tone}/>
+                        <div className="tour-card-info">
+                          <div className="tour-card-name">{t.name}</div>
+                          <div className="tour-card-players">{t.max_players ? `${t.max_players} لاعب كحد أقصى` : 'غير محدود'}</div>
+                        </div>
+                        <div className="tour-card-fee">
+                          <div className="tour-card-fee-label">رسوم الدخول</div>
+                          <div className="tour-card-fee-amount">
+                            <span>{(t.entry_fee || 0).toLocaleString('en-US')}</span>
+                            <span className="coin-dot"></span>
+                          </div>
+                        </div>
+                      </div>
+                      <div className="tour-card-bottom">
+                        <div className="tour-card-time">{NavIcons.clock}<span>ينتهي خلال: {fmtEndsShort(t.ends_at)}</span></div>
+                        <button
+                          className="tour-card-btn"
+                          onClick={() => handleJoin(t)}
+                          disabled={joining === t.id || isJoined || t.status !== 'open'}
+                          style={isJoined ? { background:'linear-gradient(135deg,#6a5a20,#3a2a08)', borderColor:'rgba(201,169,97,0.4)' } : null}
+                        >
+                          {joining === t.id ? '…' : isJoined ? 'مشترك ✓' : (t.status === 'open' ? 'اشتراك الان' : 'مغلقة')}
+                        </button>
                       </div>
                     </div>
-                  </div>
-                  <div className="tour-card-bottom">
-                    <div className="tour-card-time">
-                      {NavIcons.clock}<span>ينتهي خلال: {t.ends}</span>
-                    </div>
-                    <button className="tour-card-btn">اشتراك الان</button>
-                  </div>
-                </div>
-              ))}
-            </div>
+                  );
+                })}
+              </div>
+            )
           ) : (
-            <div style={{
-              margin: '24px 18px', padding: '40px 16px',
-              border: '1px dashed rgba(201,169,97,0.3)',
-              borderRadius: '14px',
-              textAlign: 'center',
-              color: 'rgba(216,210,196,0.55)',
-              fontFamily: 'Cairo, sans-serif',
-            }}>
-              لم تشترك في أي مسابقة بعد
-            </div>
+            // mine
+            mine.length === 0 ? (
+              <div style={{margin:'24px 18px', padding:'40px 16px', border:'1px dashed rgba(201,169,97,0.3)',
+                  borderRadius:14, textAlign:'center', color:'rgba(216,210,196,0.55)', fontFamily:'Cairo'}}>
+                لم تشترك في أي مسابقة بعد
+              </div>
+            ) : (
+              <div className="tour-list">
+                {mine.map((e, i) => {
+                  const t = e.tournaments;
+                  if (!t) return null;
+                  const tone = i % 3 === 0 ? 'gold' : i % 3 === 1 ? 'silver' : 'bronze';
+                  return (
+                    <div key={e.id} className="tour-card">
+                      <div className="tour-card-row">
+                        <TrophySmall tone={tone}/>
+                        <div className="tour-card-info">
+                          <div className="tour-card-name">{t.name}</div>
+                          <div className="tour-card-players">
+                            {e.status === 'winner'    ? '🏆 الفائز' :
+                             e.status === 'eliminated' ? 'استُبعدت' : 'نشط'}
+                          </div>
+                        </div>
+                        <div className="tour-card-fee">
+                          <div className="tour-card-fee-label">جائزة</div>
+                          <div className="tour-card-fee-amount">
+                            <span>{(t.prize_pool || 0).toLocaleString('en-US')}</span>
+                            <span className="coin-dot"></span>
+                          </div>
+                        </div>
+                      </div>
+                      <div className="tour-card-bottom">
+                        <div className="tour-card-time">{NavIcons.clock}<span>ينتهي خلال: {fmtEndsShort(t.ends_at)}</span></div>
+                        <div style={{padding:'6px 14px', borderRadius:10, background:'rgba(201,169,97,0.12)',
+                            border:'1px solid rgba(201,169,97,0.3)', color:'#e8c876', fontFamily:'Cairo', fontSize:'0.85rem'}}>
+                          مشترك
+                        </div>
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
+            )
           )}
         </div>
       );
     }
 
     // ════════════════════════════════════════════════════════════
-    // HistoryPage — صفحة "السجل"
+    // HistoryPage — صفحة "السجل"  (real games from the games table)
     // ════════════════════════════════════════════════════════════
-    function HistoryPage({ onBack }) {
+    function HistoryPage({ onBack, userId }) {
       const [tab, setTab] = useState('all'); // all | wins | losses | draws
+      const [matches, setMatches] = useState([]);
+      const [loading, setLoading] = useState(true);
 
-      // Mock match history (display-only — backed by a real `games` table when one exists)
-      const allMatches = [
-        { id:1, opponent:'ساحر الظلام',    color:'purple', result:'win',  score:'0 - 1', time:'منذ 10 دقائق',  piece:'♟', pieceTone:'gold' },
-        { id:2, opponent:'ملك الشطرنج',    color:'gold',   result:'loss', score:'1 - 0', time:'منذ 30 دقيقة',  piece:'♟', pieceTone:'dark' },
-        { id:3, opponent:'فارس الأساطير',  color:'blue',   result:'win',  score:'0 - 1', time:'منذ ساعة',      piece:'♟', pieceTone:'gold' },
-        { id:4, opponent:'سيدة الأبيض',    color:'silver', result:'draw', score:'1 - 1', time:'منذ ساعتين',    piece:'♟', pieceTone:'gold' },
-        { id:5, opponent:'تنين الصحراء',   color:'gold',   result:'win',  score:'0 - 1', time:'منذ 5 ساعات',   piece:'♟', pieceTone:'gold' },
-        { id:6, opponent:'الظل المقاتل',   color:'purple', result:'loss', score:'1 - 0', time:'أمس',           piece:'♟', pieceTone:'dark' },
-      ];
+      useEffect(() => {
+        if (!userId) { setLoading(false); return; }
+        let alive = true;
+        (async () => {
+          setLoading(true);
+          try {
+            // Pull finished games where the user was one of the two players
+            const { data: games } = await sb
+              .from('games')
+              .select('id, player1_id, player2_id, winner_id, status, created_at, updated_at')
+              .or(`player1_id.eq.${userId},player2_id.eq.${userId}`)
+              .in('status', ['completed', 'abandoned', 'finished'])
+              .order('updated_at', { ascending: false })
+              .limit(50);
 
-      const filtered = allMatches.filter(m =>
+            if (!alive) return;
+
+            // Resolve opponent display names in one batch
+            const opponentIds = Array.from(new Set(
+              (games || [])
+                .map(g => g.player1_id === userId ? g.player2_id : g.player1_id)
+                .filter(Boolean)
+            ));
+            let nameMap = {};
+            let avatarMap = {};
+            if (opponentIds.length > 0) {
+              const { data: profs } = await sb
+                .from('profiles')
+                .select('id, display_name, avatar_url')
+                .in('id', opponentIds);
+              for (const p of (profs || [])) {
+                nameMap[p.id]   = p.display_name;
+                avatarMap[p.id] = p.avatar_url;
+              }
+            }
+
+            const built = (games || []).map(g => {
+              const opponentId = g.player1_id === userId ? g.player2_id : g.player1_id;
+              const opponent   = nameMap[opponentId] || 'خصم مجهول';
+              const avatar     = avatarMap[opponentId] || null;
+              const result =
+                !g.winner_id    ? 'draw' :
+                g.winner_id === userId ? 'win' :
+                                  'loss';
+              return {
+                id: g.id,
+                opponent, avatar,
+                result,
+                score: result === 'win'  ? '1 - 0' :
+                       result === 'loss' ? '0 - 1' : '½ - ½',
+                time:  timeAgoArabic(g.updated_at || g.created_at),
+                color: ['purple','gold','blue','silver'][Math.abs(hashId(opponentId || '')) % 4],
+              };
+            });
+
+            setMatches(built);
+          } catch (e) {
+            console.warn('[HistoryPage] load error:', e?.message || e);
+          } finally {
+            if (alive) setLoading(false);
+          }
+        })();
+        return () => { alive = false; };
+      }, [userId]);
+
+      const filtered = matches.filter(m =>
         tab === 'all'    ? true :
         tab === 'wins'   ? m.result === 'win' :
         tab === 'losses' ? m.result === 'loss' :
@@ -5109,18 +5634,12 @@
 
       return (
         <div className="subpage" dir="rtl">
-          {/* Header */}
           <div className="subpage-header">
-            <button className="subpage-iconbtn" onClick={onBack} title="رجوع">
-              {NavIcons.back}
-            </button>
+            <button className="subpage-iconbtn" onClick={onBack} title="رجوع">{NavIcons.back}</button>
             <h2>السجل</h2>
-            <button className="subpage-iconbtn" title="تصفية">
-              {NavIcons.filter}
-            </button>
+            <button className="subpage-iconbtn" title="تصفية">{NavIcons.filter}</button>
           </div>
 
-          {/* Tabs: order is الكل / انتصارات / هزائم / تعادلات (right→left because RTL) */}
           <div className="pill-tabs">
             <button className={`pill-tab ${tab === 'all'    ? 'active' : ''}`} onClick={() => setTab('all')}>الكل</button>
             <button className={`pill-tab ${tab === 'wins'   ? 'active' : ''}`} onClick={() => setTab('wins')}>انتصارات</button>
@@ -5129,20 +5648,20 @@
           </div>
 
           <div className="history-list">
-            {filtered.length === 0 ? (
-              <div style={{
-                margin: '20px 0', padding: '40px 16px',
-                border: '1px dashed rgba(201,169,97,0.3)',
-                borderRadius: '14px',
-                textAlign: 'center',
-                color: 'rgba(216,210,196,0.55)',
-                fontFamily: 'Cairo, sans-serif',
-              }}>
-                لا توجد مباريات في هذا التصنيف
+            {loading ? (
+              <div style={{margin:'20px 0', padding:'40px 16px', textAlign:'center',
+                  color:'rgba(216,210,196,0.55)', fontFamily:'Cairo, sans-serif'}}>
+                جاري التحميل…
+              </div>
+            ) : filtered.length === 0 ? (
+              <div style={{margin:'20px 0', padding:'40px 16px',
+                  border:'1px dashed rgba(201,169,97,0.3)', borderRadius:14, textAlign:'center',
+                  color:'rgba(216,210,196,0.55)', fontFamily:'Cairo, sans-serif'}}>
+                {matches.length === 0 ? 'لم تلعب أي مباراة بعد. ابدأ مبارزة من الرئيسية!' : 'لا توجد مباريات في هذا التصنيف'}
               </div>
             ) : filtered.map(m => (
               <div key={m.id} className="history-card">
-                <div className={`history-piece ${m.pieceTone}`}>{m.piece}</div>
+                <div className={`history-piece ${m.result === 'win' ? 'gold' : 'dark'}`}>♟</div>
                 <div className="history-result">
                   <span className={`history-result-label ${m.result}`}>{resultLabel(m.result)}</span>
                   <span className="history-score">{m.score}</span>
@@ -5152,18 +5671,38 @@
                   <div className="history-time">{m.time}</div>
                 </div>
                 <div className={`history-avatar color-${m.color}`}>
-                  <HoodedFigure tint={
-                    m.color === 'purple' ? '#c46bff' :
-                    m.color === 'gold'   ? '#e8c876' :
-                    m.color === 'blue'   ? '#6b9eff' :
-                                            '#cdd0d6'
-                  }/>
+                  {m.avatar
+                    ? <img src={m.avatar} alt="" style={{width:'100%', height:'100%', objectFit:'cover'}}/>
+                    : <HoodedFigure tint={
+                        m.color === 'purple' ? '#c46bff' :
+                        m.color === 'gold'   ? '#e8c876' :
+                        m.color === 'blue'   ? '#6b9eff' : '#cdd0d6'
+                      }/>}
                 </div>
               </div>
             ))}
           </div>
         </div>
       );
+    }
+
+    // tiny deterministic-ish hash for picking avatar tints
+    function hashId(s) {
+      let h = 0;
+      for (let i = 0; i < s.length; i++) h = ((h << 5) - h + s.charCodeAt(i)) | 0;
+      return h;
+    }
+    function timeAgoArabic(ts) {
+      if (!ts) return '';
+      const now = Date.now();
+      const t = new Date(ts).getTime();
+      const s = Math.max(0, Math.floor((now - t) / 1000));
+      if (s < 60)        return 'منذ لحظات';
+      if (s < 3600)      return `منذ ${Math.floor(s/60)} دقيقة`;
+      if (s < 86400)     return `منذ ${Math.floor(s/3600)} ساعة`;
+      if (s < 86400*2)   return 'أمس';
+      if (s < 86400*30)  return `منذ ${Math.floor(s/86400)} يوم`;
+      return new Date(ts).toLocaleDateString('ar');
     }
 
     // ════════════════════════════════════════════════════════════
@@ -5390,8 +5929,54 @@
       const [showRules, setShowRules] = useState(false);
       const [showPassScreen, setShowPassScreen] = useState(false);
       const [previousPlayer, setPreviousPlayer] = useState(1);
+      const [missionToast, setMissionToast] = useState(null); // shows "+200 عملة" when daily mission completes
       const logRef = useRef(null);
       const aiRef = useRef({ phase: 'idle', pendingMoveTarget: null, unitList: null, unitIndex: 0 });
+      const resultRecordedRef = useRef(null); // guards against double-recording for the same game
+
+      // ──────────────────────────────────────────────────
+      // Record the result of every finished game (1p or online).
+      // 2p (local) doesn't get recorded — both players share the same
+      // account, so a "win" there doesn't reflect a real opponent beaten.
+      // ──────────────────────────────────────────────────
+      useEffect(() => {
+        if (!state.winner) {
+          // new game started — clear the guard
+          resultRecordedRef.current = null;
+          return;
+        }
+        if (mode === '2p') return; // don't count local games
+
+        // Build a stable key for this finished game so we only fire once.
+        const key = mode === 'online'
+          ? `online:${onlineGame?.gameId || 'x'}:${state.winner}`
+          : `${mode}:${Date.now()}:${state.winner}`;
+        if (resultRecordedRef.current === key) return;
+        resultRecordedRef.current = key;
+
+        const outcome =
+          mode === 'online'
+            ? (state.winner === onlineGame?.myPlayerNum ? 'win' : 'loss')
+            : (state.winner === 1 ? 'win' : 'loss');
+
+        (async () => {
+          try {
+            const { data, error } = await sb.rpc('record_game_result', {
+              p_outcome: outcome,
+              p_mode: mode,
+            });
+            if (error) { console.warn('[record_game_result] error:', error.message); return; }
+            if (data?.mission_awarded) {
+              setMissionToast({ reward: data.mission_reward });
+              setTimeout(() => setMissionToast(null), 5000);
+            }
+            // Refresh the profile so the home/profile pages show the new totals
+            if (typeof onRefreshProfile === 'function') onRefreshProfile();
+          } catch (e) {
+            console.warn('[record_game_result] exception:', e?.message || e);
+          }
+        })();
+      }, [state.winner, mode]);
 
       // ──────────────────────────────────────────────────
       // ONLINE MULTIPLAYER: تحميل أولي + اشتراك realtime
@@ -5577,12 +6162,51 @@
         const [showPlayModal, setShowPlayModal] = React.useState(false);
         const [currentPage, setCurrentPage] = React.useState('home'); // 'home' | 'tournaments' | 'history' | 'profile'
 
-        // Daily mission progress (wins today out of 3)
-        const dailyProgress = Math.min(profile?.games_won ?? 0, 3);
+        // — modals/overlays state (new) —
+        const [showSettings, setShowSettings] = React.useState(false);
+        const [showEditName, setShowEditName] = React.useState(false);
+        const [showStats, setShowStats]       = React.useState(false);
+        const [comingSoon, setComingSoon]     = React.useState(null); // { title, message } or null
+        const [uploadingAvatar, setUploadingAvatar] = React.useState(false);
+        const [uploadMessage, setUploadMessage] = React.useState(null);
+        const fileInputRef = React.useRef(null);
+
+        async function handleAvatarPicked(e) {
+          const file = e.target.files?.[0];
+          e.target.value = ''; // allow re-picking same file
+          if (!file || !user) return;
+          setUploadingAvatar(true);
+          setUploadMessage(null);
+          try {
+            await uploadAvatarFile(file, user.id);
+            if (typeof onRefreshProfile === 'function') onRefreshProfile();
+            setUploadMessage({ ok: true, text: 'تم تحديث الصورة' });
+          } catch (err) {
+            setUploadMessage({ ok: false, text: err?.message || 'فشل رفع الصورة' });
+          } finally {
+            setUploadingAvatar(false);
+            setTimeout(() => setUploadMessage(null), 4000);
+          }
+        }
+
+        // Daily mission progress (resets every day — backed by RPC record_game_result)
+        const today = new Date().toISOString().slice(0,10);
+        const missionDateMatches = profile?.daily_mission_date === today;
+        const dailyProgress = missionDateMatches ? Math.min(profile?.daily_mission_progress ?? 0, 3) : 0;
         const dailyPct = (dailyProgress / 3) * 100;
+        const dailyClaimed = missionDateMatches && !!profile?.daily_mission_claimed_at;
 
         return (
-          <div className="home-screen" onClick={() => showProfileMenu && setShowProfileMenu(false)}>
+          <div className="home-screen">
+
+            {/* hidden file input used by the avatar tap */}
+            <input
+              ref={fileInputRef}
+              type="file"
+              accept="image/jpeg,image/png,image/webp,image/gif"
+              style={{display:'none'}}
+              onChange={handleAvatarPicked}
+            />
 
             {/* ────────────────────────────────────────────────── */}
             {/* PAGE: HOME — شطرنج سحري                              */}
@@ -5593,15 +6217,11 @@
             <div className="home-top-bar">
               {/* RTL: first child = visual RIGHT */}
               <div className="home-top-icons">
-                <button className="home-bell-btn" title="الإشعارات">
-                  <svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
-                    <path d="M6 8a6 6 0 0 1 12 0c0 5 2 6.5 2 6.5H4S6 13 6 8z"/>
-                    <path d="M10.5 19a1.7 1.7 0 0 0 3 0"/>
-                  </svg>
-                </button>
+                <NotificationsBell userId={user?.id} />
                 <div
                   className="home-avatar-btn"
-                  onClick={(e) => { e.stopPropagation(); setShowProfileMenu(!showProfileMenu); }}
+                  onClick={(e) => { e.stopPropagation(); setShowSettings(true); }}
+                  title="الإعدادات"
                 >
                   {profile?.avatar_url
                     ? <img src={profile.avatar_url} alt="" />
@@ -5692,14 +6312,22 @@
             {/* PAGE: TOURNAMENTS                                  */}
             {/* ────────────────────────────────────────────────── */}
             {currentPage === 'tournaments' && (
-              <TournamentsPage onBack={() => setCurrentPage('home')} />
+              <TournamentsPage
+                onBack={() => setCurrentPage('home')}
+                userId={user?.id}
+                profile={profile}
+                onRefreshProfile={onRefreshProfile}
+              />
             )}
 
             {/* ────────────────────────────────────────────────── */}
             {/* PAGE: HISTORY                                      */}
             {/* ────────────────────────────────────────────────── */}
             {currentPage === 'history' && (
-              <HistoryPage onBack={() => setCurrentPage('home')} />
+              <HistoryPage
+                onBack={() => setCurrentPage('home')}
+                userId={user?.id}
+              />
             )}
 
             {/* ────────────────────────────────────────────────── */}
@@ -5709,12 +6337,58 @@
               <ProfilePage
                 profile={profile}
                 user={user}
-                onOpenSettings={() => setShowProfileMenu(true)}
+                onOpenSettings={() => setShowSettings(true)}
+                onOpenStats={() => setShowStats(true)}
+                onOpenAchievements={() => setComingSoon({ title:'الإنجازات', message:'نظام الإنجازات قيد التطوير. اربح المباريات ودوّر على المفاجآت! 🏅' })}
+                onOpenFriends={() => setComingSoon({ title:'الأصدقاء', message:'نظام الأصدقاء قريباً. هتقدر تضيف لاعبين وتتحداهم على مباريات خاصة. 🤝' })}
+                onEditName={() => setShowEditName(true)}
+                onEditAvatar={() => fileInputRef.current?.click()}
               />
             )}
 
             {/* ── BOTTOM NAVIGATION (shared) ── */}
             <BottomNavV2 currentPage={currentPage} onChange={setCurrentPage} />
+
+            {/* ── MODALS (shared) ── */}
+            {showSettings && (
+              <SettingsModal
+                profile={profile}
+                user={user}
+                onClose={() => setShowSettings(false)}
+                onSignOut={onSignOut}
+                onRefresh={onRefreshProfile}
+                onEditName={() => setShowEditName(true)}
+                onEditAvatar={() => fileInputRef.current?.click()}
+                onOpenRules={() => setShowRules(true)}
+                onOpenAdmin={() => setShowAdminCoins(true)}
+                onOpenRecharge={() => setShowRecharge(true)}
+              />
+            )}
+            {showEditName && (
+              <EditNameModal
+                profile={profile}
+                onClose={() => setShowEditName(false)}
+                onSaved={() => { if (typeof onRefreshProfile === 'function') onRefreshProfile(); }}
+              />
+            )}
+            {showStats && <StatsPage profile={profile} onBack={() => setShowStats(false)} />}
+            {comingSoon && <ComingSoonModal title={comingSoon.title} message={comingSoon.message} onClose={() => setComingSoon(null)} />}
+            {missionToast && <MissionToast reward={missionToast.reward} onDismiss={() => setMissionToast(null)} />}
+
+            {/* small status toast for avatar upload */}
+            {(uploadingAvatar || uploadMessage) && (
+              <div style={{
+                position:'fixed', bottom:'90px', left:'50%', transform:'translateX(-50%)',
+                background: uploadMessage?.ok === false ? 'rgba(180,30,30,0.92)' :
+                            uploadMessage?.ok === true  ? 'rgba(30,140,80,0.92)'  : 'rgba(20,18,30,0.92)',
+                color:'#fff', padding:'10px 18px', borderRadius:10,
+                fontFamily:'Cairo, sans-serif', fontSize:'0.95rem',
+                boxShadow:'0 4px 20px rgba(0,0,0,0.5)', zIndex:900,
+                border:'1px solid rgba(255,255,255,0.1)',
+              }}>
+                {uploadingAvatar ? 'جاري رفع الصورة…' : uploadMessage?.text}
+              </div>
+            )}
 
             {/* ── PLAY MODE MODAL ── */}
             {showPlayModal && (
@@ -5778,64 +6452,6 @@
             )}
 
             {/* ── PROFILE DROPDOWN ── */}
-            {showProfileMenu && (
-              <div
-                style={{
-                  position:'fixed', top:'70px', left:'16px', right:'auto',
-                  background:'linear-gradient(165deg,#1a1622,#100c18)',
-                  border:'1px solid rgba(201,169,97,0.3)',
-                  borderRadius:'12px', padding:'0.5rem',
-                  minWidth:'220px', zIndex:500,
-                  boxShadow:'0 16px 40px rgba(0,0,0,0.7)'
-                }}
-                onClick={e => e.stopPropagation()}
-              >
-                <div className="profile-menu-header">
-                  <div className="flex items-center gap-2">
-                    {profile?.avatar_url && <img src={profile.avatar_url} alt="" className="w-10 h-10 rounded-full border border-yellow-700" />}
-                    <div>
-                      <div className="font-display text-sm text-yellow-300">{profile?.display_name || 'لاعب'}</div>
-                      <div className="text-xs text-gray-500 truncate" style={{maxWidth:'160px'}}>{user.email}</div>
-                    </div>
-                  </div>
-                </div>
-                {profile?.player_id && (
-                  <div className="profile-menu-item" style={{cursor:'pointer'}} title="اضغط للنسخ"
-                    onClick={() => { navigator.clipboard?.writeText(profile.player_id); }}>
-                    <span>🆔</span>
-                    <span style={{flex:1}}>
-                      <span style={{color:'#8a8275',fontSize:'0.75rem'}}>معرّفك: </span>
-                      <b className="font-mono text-yellow-300" style={{letterSpacing:'0.05em'}}>{profile.player_id}</b>
-                    </span>
-                  </div>
-                )}
-                <div className="profile-menu-item">
-                  <span>🏆</span>
-                  <span>التقييم: <b className="text-yellow-300">{profile?.rating ?? 1000}</b></span>
-                </div>
-                <div className="profile-menu-item">
-                  <span>⚔</span>
-                  <span>المباريات: <b className="text-yellow-300">{profile?.games_won ?? 0}</b> / {profile?.games_played ?? 0}</span>
-                </div>
-                {profile?.is_admin && (
-                  <a href="admin.html" className="profile-menu-item" style={{textDecoration:'none'}}>
-                    <span>⚙</span><span>لوحة التحكم</span>
-                  </a>
-                )}
-                {profile?.is_admin && (
-                  <div className="profile-menu-item" onClick={() => { setShowAdminCoins(true); setShowProfileMenu(false); }}>
-                    <span>💰</span><span>شحن لاعب</span>
-                  </div>
-                )}
-                <div className="profile-menu-item" onClick={() => { setShowRules(true); setShowProfileMenu(false); }}>
-                  <span>📜</span><span>قواعد اللعبة</span>
-                </div>
-                <div className="profile-menu-item danger" onClick={onSignOut}>
-                  <span>⎋</span><span>تسجيل خروج</span>
-                </div>
-              </div>
-            )}
-
             {/* ── ADMIN MODAL ── */}
             {showAdminCoins && <AdminAddCoinsModal onClose={() => setShowAdminCoins(false)} />}
 
